@@ -23,13 +23,13 @@ import {
 } from "./listing.js";
 import { compressImageFile } from "./images.js";
 import { loadItems, saveItems } from "./storage.js";
-import { getSession, onAuthStateChange, signIn, signOut, syncItems } from "./cloud.js";
+import { createWorkspace, formatPairCode, getWorkspace, initializeDeviceSession, joinWorkspace, normalizePairCode, syncItems } from "./cloud.js";
 
 let items = [];
 let selectedImages = [];
 let imagesProcessing = false;
 let imageProcessingToken = 0;
-let currentSession = null;
+let currentWorkspace = null;
 let cloudSyncPromise = null;
 let cloudSyncQueued = false;
 let periodicSyncTimer = null;
@@ -133,18 +133,22 @@ const elements = {
   listedDateMessage: document.querySelector("#listedDateMessage"),
   closeListedDateDialog: document.querySelector("#closeListedDateDialog"),
   cancelListedDateButton: document.querySelector("#cancelListedDateButton"),
-  authGate: document.querySelector("#authGate"),
+  deviceGate: document.querySelector("#deviceGate"),
   pageShell: document.querySelector("#pageShell"),
-  loginForm: document.querySelector("#loginForm"),
-  loginEmail: document.querySelector("#loginEmail"),
-  loginPassword: document.querySelector("#loginPassword"),
-  loginButton: document.querySelector("#loginButton"),
-  authMessage: document.querySelector("#authMessage"),
+  createWorkspaceButton: document.querySelector("#createWorkspaceButton"),
+  joinWorkspaceForm: document.querySelector("#joinWorkspaceForm"),
+  joinWorkspaceButton: document.querySelector("#joinWorkspaceButton"),
+  pairCodeInput: document.querySelector("#pairCodeInput"),
+  deviceSetupMessage: document.querySelector("#deviceSetupMessage"),
   syncBadge: document.querySelector("#syncBadge"),
-  accountControls: document.querySelector("#accountControls"),
-  accountEmail: document.querySelector("#accountEmail"),
+  cloudControls: document.querySelector("#cloudControls"),
   syncNowButton: document.querySelector("#syncNowButton"),
-  logoutButton: document.querySelector("#logoutButton")
+  pairDeviceButton: document.querySelector("#pairDeviceButton"),
+  pairingDialog: document.querySelector("#pairingDialog"),
+  pairCodeDisplay: document.querySelector("#pairCodeDisplay"),
+  copyPairCodeButton: document.querySelector("#copyPairCodeButton"),
+  pairCodeMessage: document.querySelector("#pairCodeMessage"),
+  closePairingDialog: document.querySelector("#closePairingDialog")
 };
 
 function setSyncBadge(text, state = "") {
@@ -153,22 +157,28 @@ function setSyncBadge(text, state = "") {
   if (state) elements.syncBadge.classList.add(`sync-${state}`);
 }
 
-function setAuthenticatedUi(session) {
-  currentSession = session || null;
-  const authenticated = Boolean(session?.user);
-  elements.authGate.classList.toggle("hidden", authenticated);
-  elements.pageShell.classList.toggle("hidden", !authenticated);
-  elements.accountControls.classList.toggle("hidden", !authenticated);
-  elements.accountEmail.textContent = authenticated ? session.user.email || "Angemeldet" : "";
-  if (authenticated) {
+function setConnectedUi(workspace) {
+  currentWorkspace = workspace || null;
+  const connected = Boolean(workspace?.id);
+  elements.deviceGate.classList.toggle("hidden", connected);
+  elements.pageShell.classList.toggle("hidden", !connected);
+  elements.cloudControls.classList.toggle("hidden", !connected);
+  if (connected) {
     setSyncBadge(navigator.onLine ? "☁ Bereit zur Synchronisierung" : "⚠ Offline – lokal gespeichert", navigator.onLine ? "working" : "error");
   } else {
-    setSyncBadge("☁ Nicht angemeldet");
+    setSyncBadge("☁ Gerät noch nicht verbunden", "working");
   }
 }
 
+function showPairingCode() {
+  if (!currentWorkspace?.pairCode) return;
+  elements.pairCodeDisplay.textContent = currentWorkspace.pairCode;
+  elements.pairCodeMessage.textContent = "";
+  elements.pairingDialog.showModal();
+}
+
 async function runCloudSync({ announce = false } = {}) {
-  if (!currentSession?.user) return false;
+  if (!currentWorkspace?.id) return false;
   if (!navigator.onLine) {
     setSyncBadge("⚠ Offline – Änderungen bleiben lokal", "error");
     return false;
@@ -182,7 +192,7 @@ async function runCloudSync({ announce = false } = {}) {
   cloudSyncPromise = (async () => {
     setSyncBadge("↻ Synchronisiere …", "working");
     try {
-      items = await syncItems(items);
+      items = await syncItems(items, currentWorkspace);
       await saveItems(items);
       renderInventory();
       if (!elements.editingId.value) elements.sku.value = getNextSku(items);
@@ -216,7 +226,7 @@ async function runCloudSync({ announce = false } = {}) {
 function startPeriodicSync() {
   if (periodicSyncTimer) clearInterval(periodicSyncTimer);
   periodicSyncTimer = setInterval(() => {
-    if (document.visibilityState === "visible" && currentSession?.user) runCloudSync();
+    if (document.visibilityState === "visible" && currentWorkspace?.id) runCloudSync();
   }, 30_000);
 }
 
@@ -732,7 +742,7 @@ function renderInventory() {
 async function persistAndRender() {
   await saveItems(items);
   renderInventory();
-  if (currentSession?.user) await runCloudSync();
+  if (currentWorkspace?.id) await runCloudSync();
 }
 
 async function copyText(value, messageElement) {
@@ -1118,36 +1128,67 @@ document.querySelector(".quick-messages").addEventListener("click", (event) => {
   elements.buyerMessage.focus();
 });
 
-elements.loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  elements.authMessage.textContent = "";
-  elements.loginButton.disabled = true;
-  elements.loginButton.textContent = "Anmeldung läuft …";
+elements.createWorkspaceButton.addEventListener("click", async () => {
+  elements.deviceSetupMessage.textContent = "";
+  elements.createWorkspaceButton.disabled = true;
+  elements.createWorkspaceButton.textContent = "Einrichtung läuft …";
   try {
-    const session = await signIn(elements.loginEmail.value.trim(), elements.loginPassword.value);
-    if (!session?.user) throw new Error("Anmeldung konnte nicht abgeschlossen werden.");
-    setAuthenticatedUi(session);
-    elements.loginPassword.value = "";
+    const workspace = await createWorkspace();
+    setConnectedUi(workspace);
     await runCloudSync({ announce: true });
     showView("overview");
+    showPairingCode();
   } catch (error) {
-    elements.authMessage.textContent = `Anmeldung fehlgeschlagen: ${error.message || error}`;
-    elements.authMessage.style.color = "#a33b2b";
+    elements.deviceSetupMessage.textContent = `Einrichtung fehlgeschlagen: ${error.message || error}`;
+    elements.deviceSetupMessage.style.color = "#a33b2b";
   } finally {
-    elements.loginButton.disabled = false;
-    elements.loginButton.textContent = "Anmelden";
+    elements.createWorkspaceButton.disabled = false;
+    elements.createWorkspaceButton.textContent = "Dieses Gerät einrichten";
   }
 });
 
-elements.logoutButton.addEventListener("click", async () => {
+elements.pairCodeInput.addEventListener("input", () => {
+  const normalized = normalizePairCode(elements.pairCodeInput.value);
+  elements.pairCodeInput.value = formatPairCode(normalized);
+});
+
+elements.joinWorkspaceForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  elements.deviceSetupMessage.textContent = "";
+  elements.joinWorkspaceButton.disabled = true;
+  elements.joinWorkspaceButton.textContent = "Verbinde …";
   try {
-    await signOut();
+    const workspace = await joinWorkspace(elements.pairCodeInput.value);
+    setConnectedUi(workspace);
+    elements.pairCodeInput.value = "";
+    await runCloudSync({ announce: true });
+    showView("overview");
   } catch (error) {
-    console.error(error);
+    elements.deviceSetupMessage.textContent = `Verbindung fehlgeschlagen: ${error.message || error}`;
+    elements.deviceSetupMessage.style.color = "#a33b2b";
   } finally {
-    setAuthenticatedUi(null);
-    elements.authMessage.textContent = "Abgemeldet. Die lokale Kopie bleibt auf diesem Gerät erhalten.";
-    elements.authMessage.style.color = "#65756e";
+    elements.joinWorkspaceButton.disabled = false;
+    elements.joinWorkspaceButton.textContent = "Mit Bestand verbinden";
+  }
+});
+
+elements.pairDeviceButton.addEventListener("click", () => {
+  showPairingCode();
+});
+
+elements.closePairingDialog.addEventListener("click", () => {
+  elements.pairingDialog.close();
+});
+
+elements.copyPairCodeButton.addEventListener("click", async () => {
+  if (!currentWorkspace?.pairCode) return;
+  try {
+    await navigator.clipboard.writeText(currentWorkspace.pairCode);
+    elements.pairCodeMessage.textContent = "Gerätecode kopiert.";
+    elements.pairCodeMessage.style.color = "#087f5b";
+  } catch {
+    elements.pairCodeMessage.textContent = "Code konnte nicht automatisch kopiert werden. Bitte markieren und manuell kopieren.";
+    elements.pairCodeMessage.style.color = "#a33b2b";
   }
 });
 
@@ -1156,21 +1197,15 @@ elements.syncNowButton.addEventListener("click", async () => {
 });
 
 window.addEventListener("online", () => {
-  if (currentSession?.user) runCloudSync();
+  if (currentWorkspace?.id) runCloudSync();
 });
 
 window.addEventListener("offline", () => {
-  if (currentSession?.user) setSyncBadge("⚠ Offline – Änderungen bleiben lokal", "error");
+  if (currentWorkspace?.id) setSyncBadge("⚠ Offline – Änderungen bleiben lokal", "error");
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && currentSession?.user) runCloudSync();
-});
-
-onAuthStateChange((session) => {
-  if (session?.user?.id === currentSession?.user?.id) return;
-  setAuthenticatedUi(session);
-  if (session?.user) runCloudSync();
+  if (document.visibilityState === "visible" && currentWorkspace?.id) runCloudSync();
 });
 
 items = await loadItems();
@@ -1179,13 +1214,16 @@ resetForm();
 showView("overview");
 
 try {
-  const session = await getSession();
-  setAuthenticatedUi(session);
-  if (session?.user) await runCloudSync();
+  await initializeDeviceSession();
+  const workspace = await getWorkspace();
+  setConnectedUi(workspace);
+  if (workspace?.id) await runCloudSync();
 } catch (error) {
-  setAuthenticatedUi(null);
-  elements.authMessage.textContent = `Cloud-Verbindung konnte nicht initialisiert werden: ${error.message || error}`;
-  elements.authMessage.style.color = "#a33b2b";
+  setConnectedUi(null);
+  elements.deviceGate.classList.remove("hidden");
+  elements.deviceSetupMessage.textContent = `Cloud-Verbindung konnte nicht initialisiert werden: ${error.message || error}`;
+  elements.deviceSetupMessage.style.color = "#a33b2b";
+  setSyncBadge("⚠ Cloud-Einrichtung erforderlich", "error");
 }
 
 startPeriodicSync();

@@ -1,29 +1,26 @@
-KLEIDERPILOT 0.10 – KURZANLEITUNG CLOUD SYNC
+KLEIDERPILOT 0.10.1 – OHNE LOGIN, MIT GERÄTECODE
 
 1) SUPABASE
-   SQL Editor -> New query
-   Datei setup/supabase_setup.sql öffnen
-   gesamten Inhalt kopieren -> Run
+- Authentication öffnen.
+- In den Einstellungen „Allow anonymous sign-ins“ aktivieren.
 
-2) BENUTZER
-   Authentication -> Users -> Add user
-   E-Mail + Passwort anlegen
+2) SQL
+- SQL Editor → New query.
+- setup/supabase_setup.sql komplett einfügen.
+- Run.
 
 3) GITHUB
-   alle Dateien aus KleiderPilot-0.10-CloudSync in dein bestehendes
-   Repository kleiderpilot hochladen -> Commit changes
+- Inhalt dieses Ordners in dein Repository kleiderpilot hochladen.
+- Commit changes.
+- GitHub Pages bleibt main / (root).
 
-4) PC ZUERST
-   KleiderPilot-Webseite am PC neu laden
-   anmelden
-   warten bis "Synchronisiert" angezeigt wird
+4) ERSTES GERÄT
+- KleiderPilot öffnen.
+- „Dieses Gerät einrichten“.
+- Den angezeigten Gerätecode notieren/kopieren.
 
-5) IPAD / IPHONE
-   dieselbe KleiderPilot-URL öffnen
-   mit derselben E-Mail + Passwort anmelden
-   Artikel werden aus der Cloud geladen
-
-WICHTIG:
-- Secret/service_role Key niemals in GitHub eintragen.
-- Der Publishable Key in cloud.js ist für die Browser-App vorgesehen.
-- RLS aus dem SQL-Skript muss vor der Nutzung eingerichtet sein.
+5) IPAD / IPHONE / WEITERER PC
+- KleiderPilot öffnen.
+- „Weiteres Gerät“.
+- Gerätecode eingeben.
+- Fertig. Danach kein Login mehr.

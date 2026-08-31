@@ -20,33 +20,38 @@
         <p class="subtitle">Aus Fotos und Eckdaten Vinted-Entwürfe erstellen, Artikel verwalten und Angebote bewerten.</p>
       </div>
       <div class="topbar-actions">
-        <div id="syncBadge" class="privacy-badge">☁ Nicht angemeldet</div>
-        <div id="accountControls" class="account-controls hidden">
-          <span id="accountEmail" class="account-email"></span>
+        <div id="syncBadge" class="privacy-badge">☁ Initialisiere …</div>
+        <div id="cloudControls" class="account-controls hidden">
           <button id="syncNowButton" class="topbar-button" type="button">Synchronisieren</button>
-          <button id="logoutButton" class="topbar-button" type="button">Abmelden</button>
+          <button id="pairDeviceButton" class="topbar-button" type="button">Gerät verbinden</button>
         </div>
       </div>
     </header>
 
-    <section id="authGate" class="auth-gate">
-      <article class="auth-card">
-        <p class="step">KLEIDERPILOT CLOUD</p>
-        <h2>Anmelden</h2>
-        <p>Mit demselben Konto auf PC, iPad und iPhone anmelden. Danach wird dein Artikelbestand automatisch zusammengeführt und synchronisiert.</p>
-        <form id="loginForm" class="auth-form">
-          <label>
-            E-Mail
-            <input id="loginEmail" type="email" autocomplete="username" required placeholder="name@beispiel.de">
-          </label>
-          <label>
-            Passwort
-            <input id="loginPassword" type="password" autocomplete="current-password" required>
-          </label>
-          <button id="loginButton" class="button primary" type="submit">Anmelden</button>
-        </form>
-        <p id="authMessage" class="form-message" role="status"></p>
-        <p class="hint">Das Benutzerkonto wird einmalig in Supabase unter Authentication → Users angelegt. Verwende anschließend auf allen Geräten dieselben Zugangsdaten.</p>
+    <section id="deviceGate" class="auth-gate hidden">
+      <article class="auth-card device-card">
+        <p class="step">EINMALIGE GERÄTE-EINRICHTUNG</p>
+        <h2>KleiderPilot verbinden</h2>
+        <p>Keine E-Mail, kein Passwort. Richte auf einem Gerät deinen gemeinsamen KleiderPilot-Bestand ein und verbinde weitere Geräte einmalig mit einem Gerätecode.</p>
+        <div class="device-setup-grid">
+          <div class="device-setup-option">
+            <h3>Erstes Gerät</h3>
+            <p>Wenn noch kein anderes Gerät synchronisiert wird, hier starten. Deine vorhandenen lokalen Artikel bleiben erhalten und werden anschließend in die Cloud übernommen.</p>
+            <button id="createWorkspaceButton" class="button primary" type="button">Dieses Gerät einrichten</button>
+          </div>
+          <div class="device-setup-divider" aria-hidden="true">oder</div>
+          <form id="joinWorkspaceForm" class="device-setup-option">
+            <h3>Weiteres Gerät</h3>
+            <p>Gerätecode auf einem bereits verbundenen PC, iPad oder iPhone unter „Gerät verbinden“ anzeigen und hier eingeben.</p>
+            <label>
+              Gerätecode
+              <input id="pairCodeInput" type="text" inputmode="text" autocomplete="off" maxlength="19" placeholder="ABCD-1234-EF56-7890">
+            </label>
+            <button id="joinWorkspaceButton" class="button primary" type="submit">Mit Bestand verbinden</button>
+          </form>
+        </div>
+        <p id="deviceSetupMessage" class="form-message" role="status"></p>
+        <p class="hint">Die Kopplung wird auf diesem Gerät gespeichert. Normalerweise musst du sie nur einmal durchführen. Wenn Browser-/App-Daten vollständig gelöscht werden, kann das Gerät mit demselben Code erneut verbunden werden.</p>
       </article>
     </section>
 
@@ -147,7 +152,7 @@
         <p id="homeMessage" class="home-message" role="status"></p>
 
         <section class="notice">
-          <strong>Cloud Sync 0.10:</strong> Artikelbestand und Artikelfotos werden nach der Anmeldung über Supabase zwischen PC, iPad und iPhone synchronisiert. Vinted selbst wird weiterhin nicht automatisch bedient und Nachrichten werden nicht automatisch verschickt.
+          <strong>Cloud Sync 0.10.1:</strong> Artikelbestand und Artikelfotos werden nach der einmaligen Geräte-Kopplung über Supabase zwischen PC, iPad und iPhone synchronisiert – ohne sichtbaren Login. Vinted selbst wird weiterhin nicht automatisch bedient und Nachrichten werden nicht automatisch verschickt.
         </section>
       </section>
 
@@ -500,6 +505,21 @@
           <button class="button primary" type="submit">Datum speichern</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="pairingDialog" class="item-dialog pairing-dialog">
+      <div class="dialog-heading">
+        <div>
+          <p class="step">WEITERES GERÄT VERBINDEN</p>
+          <h2>Gerätecode</h2>
+        </div>
+        <button id="closePairingDialog" class="button ghost" type="button">Schließen</button>
+      </div>
+      <p>Öffne KleiderPilot auf dem neuen Gerät und wähle dort „Weiteres Gerät“. Gib anschließend diesen Code ein:</p>
+      <div id="pairCodeDisplay" class="pair-code-display">----</div>
+      <button id="copyPairCodeButton" class="button primary" type="button">Code kopieren</button>
+      <p id="pairCodeMessage" class="form-message" role="status"></p>
+      <p class="hint">Behandle den Code wie einen privaten Freigabecode. Wer ihn kennt, kann seinen Browser mit deinem KleiderPilot-Bestand verbinden.</p>
     </dialog>
 
     <script type="module" src="dashboard.js"></script>

@@ -1411,3 +1411,76 @@ a {
     max-width: none;
   }
 }
+
+/* Geräte-Synchronisierung 0.10.1 */
+.device-card {
+  width: min(820px, 100%);
+}
+
+#deviceGate.auth-gate {
+  width: min(880px, calc(100% - 32px));
+}
+
+.device-setup-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.device-setup-option {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-soft, #faf9f5);
+}
+
+.device-setup-option h3,
+.device-setup-option p {
+  margin: 0;
+}
+
+.device-setup-option p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.device-setup-divider {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pairing-dialog {
+  width: min(560px, calc(100% - 28px));
+}
+
+.pair-code-display {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft, #faf9f5);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(1.35rem, 4vw, 2rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-align: center;
+  user-select: all;
+}
+
+@media (max-width: 760px) {
+  .device-setup-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .device-setup-divider {
+    justify-self: center;
+  }
+}

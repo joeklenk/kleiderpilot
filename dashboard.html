@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f7f5ef">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="KleiderPilot">
+    <link rel="manifest" href="app.webmanifest">
+    <link rel="apple-touch-icon" href="icons/icon-180.png">
+    <title>KleiderPilot</title>
+    <link rel="stylesheet" href="dashboard.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">LOKALER SECOND-HAND-ASSISTENT</p>
+        <h1>KleiderPilot</h1>
+        <p class="subtitle">Aus Fotos und Eckdaten Vinted-Entwürfe erstellen, Artikel verwalten und Angebote bewerten.</p>
+      </div>
+      <div class="privacy-badge">🔒 Daten bleiben auf diesem Gerät</div>
+    </header>
+
+    <main class="page-shell">
+      <section id="overviewView" class="app-view">
+        <section class="stats" aria-label="Übersicht">
+          <article class="stat-card">
+            <span>Artikel im Kleiderschrank</span>
+            <strong id="activeCount">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>Kleiderschrankwert</span>
+            <strong id="inventoryValue">0 €</strong>
+          </article>
+          <article class="stat-card">
+            <span>Artikel verkauft</span>
+            <strong id="soldCount">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>Verkaufserlös</span>
+            <strong id="revenueValue">0 €</strong>
+          </article>
+        </section>
+
+        <section class="panel inventory-panel">
+          <div class="panel-heading inventory-heading">
+            <div>
+              <p class="step">ÜBERSICHT</p>
+              <h2>Artikelbestand</h2>
+            </div>
+            <div class="toolbar">
+              <button id="loadSamplesButton" class="button ghost" type="button">10 Testartikel laden</button>
+              <button id="importButton" class="button ghost" type="button" title="KleiderPilot-Sicherung importieren">Importieren</button>
+              <input id="importFile" type="file" accept="application/json,.json" hidden>
+              <button id="exportButton" class="button ghost" type="button" title="Bestand als Sicherungsdatei herunterladen">Exportieren</button>
+            </div>
+          </div>
+
+          <div class="inventory-controls">
+            <label class="inventory-search">
+              Suche
+              <input id="inventorySearch" type="search" placeholder="Artikelnummer, Marke oder Artikel">
+            </label>
+            <label>
+              Status
+              <select id="inventoryStatusFilter">
+                <option value="all">Alle</option>
+                <option value="draft">Entwürfe</option>
+                <option value="listed">Auf Vinted gestellt</option>
+                <option value="sold">Verkauft</option>
+                <option value="shipped">Versendet</option>
+                <option value="deleted">Gelöscht</option>
+              </select>
+            </label>
+            <label>
+              Sortierung
+              <select id="inventorySort">
+                <option value="sku">Artikelnummer</option>
+                <option value="date-newest">Datum – neueste zuerst</option>
+                <option value="date-oldest">Datum – älteste zuerst</option>
+                <option value="price-desc">Preis – höchste zuerst</option>
+                <option value="price-asc">Preis – niedrigste zuerst</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bild</th>
+                  <th>Artikelnummer</th>
+                  <th>Artikel</th>
+                  <th>Status</th>
+                  <th>Preis</th>
+                  <th>Eingestellt seit</th>
+                  <th>Aktionen</th>
+                </tr>
+              </thead>
+              <tbody id="inventoryBody"></tbody>
+            </table>
+            <div id="emptyState" class="empty-state">
+              Noch keine Artikel vorhanden. Lege deinen ersten Artikel an.
+            </div>
+          </div>
+        </section>
+
+        <section class="home-actions" aria-label="Hauptfunktionen">
+          <button id="openItemViewButton" class="action-card" type="button">
+            <span class="action-icon" aria-hidden="true">＋</span>
+            <span>
+              <strong>Artikel anlegen</strong>
+              <small>Fotos, Eckdaten, Preise und Vinted-Entwurf</small>
+            </span>
+          </button>
+          <button id="openAssistantViewButton" class="action-card" type="button">
+            <span class="action-icon" aria-hidden="true">💬</span>
+            <span>
+              <strong>Antwort-Assistent</strong>
+              <small>Käufernachricht prüfen und Antwort erstellen</small>
+            </span>
+          </button>
+        </section>
+        <p id="homeMessage" class="home-message" role="status"></p>
+
+        <section class="notice">
+          <strong>Multi-Device 0.9:</strong> Diese Version speichert Artikelfotos, erstellt strukturierte Vinted-Entwürfe und unterstützt regelbasierte Käuferantworten. Sie greift nicht automatisch auf dein Vinted-Konto zu und verschickt keine Nachrichten.
+        </section>
+      </section>
+
+      <section id="itemView" class="app-view hidden">
+        <div class="view-heading">
+          <button class="button ghost" type="button" data-show-view="overview">← Zur Übersicht</button>
+          <div>
+            <p class="step">ARTIKELVERWALTUNG</p>
+            <h2>Artikel anlegen oder bearbeiten</h2>
+          </div>
+        </div>
+
+        <section class="grid two-columns">
+        <article class="panel item-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="step">EINGABE</p>
+              <h2 id="itemFormHeading">Artikel anlegen</h2>
+            </div>
+            <button id="resetFormButton" class="button ghost" type="button">Formular leeren</button>
+          </div>
+
+          <form id="itemForm" class="item-form" novalidate>
+            <input id="editingId" type="hidden">
+
+            <div class="photo-workspace">
+              <label class="photo-upload">
+                Fotos auswählen (mindestens 1)
+                <input id="itemPhotos" type="file" accept="image/*" multiple>
+                <span>Bis zu 20 Fotos · Reihenfolge und Hauptbild können anschließend geändert werden</span>
+              </label>
+              <div id="photoPreview" class="photo-preview hidden" aria-label="Ausgewählte Fotos"></div>
+              <p id="photoMessage" class="form-message" role="status"></p>
+              <p class="hint">Die Bilder werden platzsparend komprimiert und zusammen mit dem Artikel lokal gespeichert.</p>
+            </div>
+
+            <div class="field-row">
+              <label>
+                Artikelnummer
+                <input id="sku" name="sku" readonly aria-readonly="true">
+              </label>
+              <label>
+                Vinted-Bereich
+                <select id="audience" name="audience">
+                  <option selected>Herren</option>
+                  <option>Damen</option>
+                  <option>Kinder</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="field-row three">
+              <label>
+                Artikelart
+                <input id="itemType" name="itemType" required placeholder="z. B. Hoodie">
+              </label>
+              <label>
+                Marke
+                <input id="brand" name="brand" placeholder="z. B. Nike">
+              </label>
+              <label>
+                Größe
+                <input id="size" name="size" placeholder="z. B. M">
+              </label>
+            </div>
+
+            <div class="field-row three">
+              <label>
+                Zustand
+                <select id="condition" name="condition">
+                  <option>Neu mit Etikett</option>
+                  <option>Neu ohne Etikett</option>
+                  <option selected>Sehr gut</option>
+                  <option>Gut</option>
+                  <option>Zufriedenstellend</option>
+                </select>
+              </label>
+              <label>
+                Farbe – optional
+                <input id="color" name="color" placeholder="z. B. Schwarz">
+              </label>
+              <label>
+                Material – optional
+                <input id="material" name="material" placeholder="z. B. Baumwolle">
+              </label>
+            </div>
+
+            <div class="field-row">
+              <label>
+                Modell/Besonderheit – optional
+                <input id="model" name="model" placeholder="z. B. Air Max 90 oder Vintage">
+              </label>
+              <label>
+                Sichtbare Details – optional
+                <input id="visualDetails" name="visualDetails" placeholder="z. B. Logo auf der Brust, Kapuze mit Kordelzug">
+              </label>
+            </div>
+
+            <fieldset>
+              <legend>Preise und Preisregeln</legend>
+              <div class="price-toolbar">
+                <a id="vintedSearchLink" class="button ghost" href="https://www.vinted.de/catalog" target="_blank" rel="noreferrer">Ähnliche Artikel auf Vinted öffnen</a>
+              </div>
+              <p class="hint">Vergleiche ähnliche Angebote auf Vinted und trage deine Preisgrenzen anschließend selbst ein.</p>
+              <div class="field-row three">
+                <label>
+                  Listenpreis (€)
+                  <input id="listPrice" name="listPrice" type="number" min="0.01" step="0.01" required placeholder="40">
+                </label>
+                <label>
+                  Zielpreis (€)
+                  <input id="targetPrice" name="targetPrice" type="number" min="0.01" step="0.01" required placeholder="35">
+                </label>
+                <label>
+                  Untergrenze (€)
+                  <input id="floorPrice" name="floorPrice" type="number" min="0.01" step="0.01" required placeholder="31">
+                </label>
+              </div>
+              <p class="hint">Regel: Untergrenze ≤ Zielpreis ≤ Listenpreis</p>
+            </fieldset>
+
+            <label>
+              Maße – optional
+              <textarea id="measurements" name="measurements" rows="2" placeholder="Brustweite 55 cm, Länge 68 cm, Ärmel 62 cm"></textarea>
+            </label>
+
+            <label>
+              Mängel und Besonderheiten – optional
+              <textarea id="flaws" name="flaws" rows="2" placeholder="Keine Flecken oder Löcher; leichte Waschspuren"></textarea>
+            </label>
+
+            <label>
+              Versandhinweis
+              <input id="shipping" name="shipping" value="Der Versand erfolgt über die bei Vinted auswählbaren Versandarten">
+            </label>
+
+            <label>
+              Link zum veröffentlichten Vinted-Artikel – optional
+              <input id="vintedUrl" name="vintedUrl" type="url" placeholder="https://www.vinted.de/items/…">
+            </label>
+
+            <div class="form-actions">
+              <button id="refreshDraftButton" class="button secondary" type="button">Vinted-Entwurf aktualisieren</button>
+              <button class="button primary" type="submit">Artikel speichern</button>
+            </div>
+            <p id="formMessage" class="form-message" role="status"></p>
+          </form>
+        </article>
+
+        <article class="panel draft-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="step">COPY & PASTE</p>
+              <h2>Vinted-Entwurf</h2>
+            </div>
+          </div>
+
+          <p class="draft-intro">Vorschläge prüfen und anschließend feldweise nach Vinted kopieren.</p>
+
+          <div class="draft-fields">
+            <label>
+              Titel
+              <div class="copy-field-row">
+                <textarea id="vintedTitle" rows="2" maxlength="100" placeholder="Wird aus deinen Eckdaten erstellt"></textarea>
+                <button class="mini-button" type="button" data-copy-target="vintedTitle">Kopieren</button>
+              </div>
+              <span id="titleCounter" class="field-counter">0 / 100 Zeichen</span>
+            </label>
+
+            <label>
+              Beschreibung
+              <div class="copy-field-row vertical-copy">
+                <textarea id="vintedDescription" rows="12" placeholder="Wird aus deinen Eckdaten erstellt"></textarea>
+                <button class="mini-button" type="button" data-copy-target="vintedDescription">Beschreibung kopieren</button>
+              </div>
+            </label>
+
+            <label>
+              Kategorie
+              <div class="copy-field-row">
+                <textarea id="vintedCategory" rows="2" placeholder="Kategorie-Vorschlag"></textarea>
+                <button class="mini-button" type="button" data-copy-target="vintedCategory">Kopieren</button>
+              </div>
+            </label>
+
+            <div class="vinted-details" aria-label="Vorgeschlagene Vinted-Einstellungen">
+              <button type="button" class="detail-copy" data-copy-target="vintedBrand"><span>Marke</span><strong id="vintedBrand">–</strong><small>Kopieren</small></button>
+              <button type="button" class="detail-copy" data-copy-target="vintedSize"><span>Größe</span><strong id="vintedSize">–</strong><small>Kopieren</small></button>
+              <button type="button" class="detail-copy" data-copy-target="vintedCondition"><span>Zustand</span><strong id="vintedCondition">–</strong><small>Kopieren</small></button>
+              <button type="button" class="detail-copy" data-copy-target="vintedColor"><span>Farbe</span><strong id="vintedColor">–</strong><small>Kopieren</small></button>
+              <button type="button" class="detail-copy" data-copy-target="vintedMaterial"><span>Material</span><strong id="vintedMaterial">–</strong><small>Kopieren</small></button>
+              <button type="button" class="detail-copy" data-copy-target="vintedPackageSize"><span>Sendungsgröße</span><strong id="vintedPackageSize">–</strong><small>Kopieren</small></button>
+              <button type="button" class="detail-copy highlight-detail" data-copy-target="vintedPrice"><span>Preis</span><strong id="vintedPrice">–</strong><small>Kopieren</small></button>
+            </div>
+
+            <div class="draft-checks">
+              <div>
+                <strong>Empfohlene Maße</strong>
+                <p id="measurementChecklist">Artikelart eingeben, um die passenden Maße zu sehen.</p>
+              </div>
+              <div>
+                <strong>Vor dem Einstellen prüfen</strong>
+                <p id="listingWarnings">Noch keine Artikeldaten eingetragen.</p>
+              </div>
+            </div>
+
+            <button id="copyListingButton" class="button secondary full" type="button">Gesamten Entwurf kopieren</button>
+            <p id="copyListingMessage" class="form-message" role="status"></p>
+            <p class="hint"><strong>Sendungsgröße</strong> beschreibt die ungefähr benötigte Paketgröße, nicht die Kleidergröße. Kategorie und Sendungsgröße bitte vor dem Einstellen in Vinted prüfen.</p>
+          </div>
+        </article>
+        </section>
+      </section>
+
+      <section id="assistantView" class="app-view hidden">
+        <div class="view-heading">
+          <button class="button ghost" type="button" data-show-view="overview">← Zur Übersicht</button>
+          <div>
+            <p class="step">KÄUFERKOMMUNIKATION</p>
+            <h2>Antwort-Assistent</h2>
+          </div>
+        </div>
+
+        <section class="panel assistant-panel standalone-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="step">ANTWORT ERSTELLEN</p>
+              <h2>Nachricht prüfen</h2>
+            </div>
+            <button id="resetAssistantButton" class="button ghost" type="button">Zurücksetzen</button>
+          </div>
+
+          <div class="assistant-layout">
+            <form id="assistantForm" class="assistant-form">
+              <label>
+                Artikel auswählen
+                <select id="assistantItem" required>
+                  <option value="">Bitte zuerst einen Artikel anlegen</option>
+                </select>
+              </label>
+
+              <article id="assistantItemSummary" class="assistant-item-summary hidden" aria-live="polite">
+                <div class="assistant-summary-image-wrap">
+                  <img id="assistantSummaryImage" class="assistant-summary-image" alt="">
+                  <span id="assistantSummaryNoImage" class="assistant-summary-no-image hidden">Kein Bild</span>
+                </div>
+                <div class="assistant-summary-content">
+                  <p id="assistantSummarySku" class="step"></p>
+                  <h3 id="assistantSummaryTitle"></h3>
+                  <p id="assistantSummaryMeta" class="assistant-summary-meta"></p>
+                  <div class="assistant-summary-prices">
+                    <div><span>Listenpreis</span><strong id="assistantSummaryListPrice">–</strong></div>
+                    <div><span>Zielpreis</span><strong id="assistantSummaryTargetPrice">–</strong></div>
+                    <div><span>Minimum</span><strong id="assistantSummaryFloorPrice">–</strong></div>
+                  </div>
+                </div>
+              </article>
+
+              <label>
+                Nachricht des Käufers
+                <textarea id="buyerMessage" rows="5" required placeholder="z. B. 30 oder Würdest du 30 € machen?"></textarea>
+              </label>
+
+              <label>
+                Angebot (€) – optional
+                <input id="explicitOffer" type="number" min="0.01" step="0.01" placeholder="Wird möglichst aus der Nachricht erkannt">
+              </label>
+
+              <div class="field-row assistant-options">
+                <label>
+                  Antwortstil
+                  <select id="responseStyle">
+                    <option value="friendly" selected>Freundlich</option>
+                    <option value="short">Kurz</option>
+                    <option value="detailed">Ausführlich</option>
+                  </select>
+                </label>
+                <label>
+                  Bisherige Gegenangebote
+                  <input id="counterOffers" type="number" min="0" max="10" step="1" value="0">
+                </label>
+              </div>
+
+              <div class="quick-messages" aria-label="Beispielnachrichten">
+                <span>Schnell testen:</span>
+                <button type="button" data-message="30">30</button>
+                <button type="button" data-message="Welche Maße hat der Artikel?">Maße</button>
+                <button type="button" data-message="Ist der Artikel noch verfügbar?">Verfügbar</button>
+                <button type="button" data-message="Kannst du ihn reservieren?">Reservieren</button>
+                <button type="button" data-message="Kann ich per PayPal zahlen?">Zahlung</button>
+              </div>
+
+              <button class="button primary full" type="submit">Antwort erstellen</button>
+            </form>
+
+            <section id="suggestionCard" class="suggestion hidden" aria-live="polite">
+              <div class="suggestion-topline">
+                <span id="suggestionLabel" class="decision-badge"></span>
+                <span id="suggestionIntent" class="intent"></span>
+              </div>
+              <p id="suggestionReason" class="reason"></p>
+              <div id="manualWarning" class="warning hidden">
+                ⚠️ Die Antwort benötigt deine manuelle Prüfung.
+              </div>
+              <label id="replyContainer">
+                Antwortvorschlag
+                <textarea id="suggestedReply" rows="6"></textarea>
+              </label>
+              <button id="copyReplyButton" class="button secondary full" type="button">Antwort kopieren</button>
+              <p id="copyMessage" class="form-message" role="status"></p>
+            </section>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <dialog id="itemDetailsDialog" class="item-dialog">
+      <div class="dialog-heading">
+        <div>
+          <p id="dialogSku" class="step"></p>
+          <h2 id="dialogTitle">Artikel</h2>
+        </div>
+        <button id="closeDetailsDialog" class="dialog-close" type="button" aria-label="Bilderansicht schließen">×</button>
+      </div>
+      <div id="dialogGallery" class="dialog-gallery">
+        <img id="dialogMainImage" class="dialog-main-image" alt="Artikelbild">
+        <div id="dialogThumbnails" class="dialog-thumbnails" aria-label="Weitere Artikelbilder"></div>
+      </div>
+      <p id="dialogNoImages" class="empty-state hidden">Für diesen älteren Artikel wurden noch keine Bilder gespeichert.</p>
+      <p id="dialogMeta" class="dialog-meta"></p>
+    </dialog>
+
+    <dialog id="listedDateDialog" class="date-dialog">
+      <form id="listedDateForm">
+        <div class="dialog-heading">
+          <div>
+            <p class="step">VINTED-DATUM</p>
+            <h2>Einstelldatum ändern</h2>
+          </div>
+          <button id="closeListedDateDialog" class="dialog-close" type="button" aria-label="Dialog schließen">×</button>
+        </div>
+        <input id="listedDateItemId" type="hidden">
+        <label>
+          Auf Vinted gestellt am
+          <input id="listedDateInput" type="date" required>
+        </label>
+        <p id="listedDateMessage" class="form-message" role="status"></p>
+        <div class="dialog-actions">
+          <button id="cancelListedDateButton" class="button ghost" type="button">Abbrechen</button>
+          <button class="button primary" type="submit">Datum speichern</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="dashboard.js"></script>
+  </body>
+</html>

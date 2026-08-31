@@ -1,6 +1,6 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const SUPABASE_URL = "https://hxolfoevyfygqljmpqsq.supabase.co";
+const SUPABASE_URL = "https://hxolfoevyfyqgljmpqsq.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_uhyNX54ryMnLUMk9Ri0MmQ_1w2jFsgE";
 const WORKSPACES_TABLE = "kleiderpilot_workspaces";
 const MEMBERS_TABLE = "kleiderpilot_workspace_members";

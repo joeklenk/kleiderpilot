@@ -22,8 +22,7 @@ import {
   normalizeVintedItemUrl
 } from "./listing.js";
 import { compressImageFile } from "./images.js";
-import { createSampleItems } from "./samples.js";
-import { exportData, loadItems, saveItems, validateImport } from "./storage.js";
+import { loadItems, saveItems } from "./storage.js";
 
 let items = [];
 let selectedImages = [];
@@ -104,10 +103,6 @@ const elements = {
   copyMessage: document.querySelector("#copyMessage"),
   inventoryBody: document.querySelector("#inventoryBody"),
   emptyState: document.querySelector("#emptyState"),
-  loadSamplesButton: document.querySelector("#loadSamplesButton"),
-  exportButton: document.querySelector("#exportButton"),
-  importButton: document.querySelector("#importButton"),
-  importFile: document.querySelector("#importFile"),
   assistantItemSummary: document.querySelector("#assistantItemSummary"),
   assistantSummaryImage: document.querySelector("#assistantSummaryImage"),
   assistantSummaryNoImage: document.querySelector("#assistantSummaryNoImage"),
@@ -741,21 +736,6 @@ elements.openAssistantViewButton.addEventListener("click", () => {
   showView("assistant");
 });
 
-elements.loadSamplesButton.addEventListener("click", async () => {
-  const existingSamples = items.filter((item) => item.sampleData);
-  if (existingSamples.length > 0 && !confirm("Die vorhandenen Testartikel auf den Ausgangszustand zurücksetzen?")) return;
-
-  const ownItems = items.filter((item) => !item.sampleData);
-  const samples = createSampleItems(ownItems);
-  items = [...ownItems, ...samples];
-  elements.inventorySearch.value = "";
-  elements.inventoryStatusFilter.value = "all";
-  elements.inventorySort.value = "sku";
-  await persistAndRender();
-  elements.homeMessage.textContent = `${samples.length} Testartikel wurden ${existingSamples.length ? "zurückgesetzt" : "hinzugefügt"}.`;
-  elements.homeMessage.style.color = "#087f5b";
-});
-
 for (const button of document.querySelectorAll("[data-show-view]")) {
   button.addEventListener("click", () => showView(button.dataset.showView));
 }
@@ -1045,47 +1025,6 @@ document.querySelector(".quick-messages").addEventListener("click", (event) => {
   elements.buyerMessage.value = button.dataset.message;
   elements.explicitOffer.value = "";
   elements.buyerMessage.focus();
-});
-
-elements.importButton.addEventListener("click", () => {
-  elements.importFile.value = "";
-  elements.importFile.click();
-});
-
-elements.importFile.addEventListener("change", async () => {
-  const file = elements.importFile.files?.[0];
-  if (!file) return;
-
-  try {
-    const payload = JSON.parse(await file.text());
-    const importedItems = validateImport(payload);
-    const message = items.length
-      ? `Die aktuelle Liste mit ${items.length} Artikel(n) wird durch ${importedItems.length} Artikel aus der Sicherung ersetzt. Fortfahren?`
-      : `${importedItems.length} Artikel aus der Sicherung importieren?`;
-    if (!confirm(message)) return;
-
-    items = importedItems;
-    await saveItems(items);
-    renderInventory();
-    resetForm();
-    showView("overview");
-    elements.homeMessage.textContent = `${items.length} Artikel wurden erfolgreich importiert.`;
-    elements.homeMessage.style.color = "#087f5b";
-  } catch (error) {
-    elements.homeMessage.textContent = error instanceof Error ? error.message : "Die Sicherung konnte nicht importiert werden.";
-    elements.homeMessage.style.color = "#a33b2b";
-  }
-});
-
-elements.exportButton.addEventListener("click", async () => {
-  const contents = await exportData(items);
-  const blob = new Blob([contents], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `kleiderpilot-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  anchor.click();
-  URL.revokeObjectURL(url);
 });
 
 items = await loadItems();

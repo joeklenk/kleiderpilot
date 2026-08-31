@@ -2,7 +2,7 @@
   "name": "KleiderPilot",
   "short_name": "KleiderPilot",
   "description": "Lokaler Second-Hand-Assistent für Vinted-Entwürfe, Preisregeln und Antwortvorschläge.",
-  "start_url": "./dashboard.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f7f5ef",

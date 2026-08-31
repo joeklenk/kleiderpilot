@@ -1,40 +1,22 @@
-# KleiderPilot – Multi-Device 0.9
+# KleiderPilot – Multi-Device 0.9.1
 
-Version 0.9 basiert fachlich auf dem final getesteten Prototyp 0.8. Die Kernlogik für Artikel, Bilder, Preise, Status und Antwortvorschläge bleibt erhalten. Die Chrome-spezifische Speicherung wurde für die Web-/PWA-Nutzung um IndexedDB erweitert.
+Diese Version basiert auf der fachlich getesteten 0.8 und ist für GitHub Pages/PWA auf PC, iPad und iPhone vorbereitet.
 
-## Zielgeräte
+## Änderungen gegenüber 0.9
 
-- Windows / macOS im Browser
-- iPad und iPhone über Safari
-- Installation als PWA über „Zum Home-Bildschirm“
+- Startdatei ist `index.html` (GitHub Pages/PWA).
+- Button **10 Testartikel laden** entfernt.
+- **Importieren** entfernt.
+- **Exportieren** entfernt.
+- PWA-Manifest und Service Worker auf `index.html` angepasst.
+- Hinweis ergänzt, dass Fotos über den System-Dateidialog auch aus OneDrive ausgewählt werden können.
 
-## Datenübernahme aus 0.8
+## OneDrive-Bilderordner
 
-1. In KleiderPilot 0.8 auf **Exportieren** klicken.
-2. Die erzeugte JSON-Sicherung auf OneDrive oder iCloud Drive speichern.
-3. KleiderPilot 0.9 öffnen.
-4. **Importieren** wählen und die JSON-Datei auswählen.
-5. Import bestätigen.
+Unter Windows kann beim Auswählen von Bildern der synchronisierte Ordner genutzt werden, z. B. `OneDrive\Dokumente\Vinted\Bilder`. Auf iPhone/iPad kann derselbe Cloud-Ordner über die Dateien-App bzw. den Dateiauswahldialog und den Speicherort **OneDrive** geöffnet werden.
 
-Die Speicherung ist lokal pro Gerät. OneDrive kann Quellcode, ZIPs und Sicherungen speichern, synchronisiert aber nicht automatisch den laufenden Artikelbestand zwischen Geräten.
+Wichtig: KleiderPilot speichert nach der Auswahl eine komprimierte Kopie des Fotos lokal in der Browser-Datenbank. Der Artikelbestand wird in 0.9.1 noch nicht automatisch zwischen Geräten synchronisiert.
 
-## iPad / iPhone
+## GitHub Pages
 
-Eine PWA muss über HTTPS bereitgestellt werden. Nach dem Deployment die URL in Safari öffnen und **Teilen → Zum Home-Bildschirm** wählen. Anschließend startet KleiderPilot wie eine eigenständige App.
-
-## Lokal testen
-
-Zum Testen am PC kann ein einfacher lokaler Webserver verwendet werden, z. B. mit Python:
-
-```powershell
-cd KleiderPilot-0.9-MultiDevice
-python -m http.server 8080
-```
-
-Dann `http://localhost:8080/dashboard.html` öffnen.
-
-## Entwickler-Tests
-
-```powershell
-npm test
-```
+Repository-Inhalt direkt in den Root hochladen und unter **Settings → Pages → Deploy from a branch → main → /(root)** veröffentlichen.

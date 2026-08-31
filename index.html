@@ -19,10 +19,38 @@
         <h1>KleiderPilot</h1>
         <p class="subtitle">Aus Fotos und Eckdaten Vinted-Entwürfe erstellen, Artikel verwalten und Angebote bewerten.</p>
       </div>
-      <div class="privacy-badge">🔒 Daten bleiben auf diesem Gerät</div>
+      <div class="topbar-actions">
+        <div id="syncBadge" class="privacy-badge">☁ Nicht angemeldet</div>
+        <div id="accountControls" class="account-controls hidden">
+          <span id="accountEmail" class="account-email"></span>
+          <button id="syncNowButton" class="topbar-button" type="button">Synchronisieren</button>
+          <button id="logoutButton" class="topbar-button" type="button">Abmelden</button>
+        </div>
+      </div>
     </header>
 
-    <main class="page-shell">
+    <section id="authGate" class="auth-gate">
+      <article class="auth-card">
+        <p class="step">KLEIDERPILOT CLOUD</p>
+        <h2>Anmelden</h2>
+        <p>Mit demselben Konto auf PC, iPad und iPhone anmelden. Danach wird dein Artikelbestand automatisch zusammengeführt und synchronisiert.</p>
+        <form id="loginForm" class="auth-form">
+          <label>
+            E-Mail
+            <input id="loginEmail" type="email" autocomplete="username" required placeholder="name@beispiel.de">
+          </label>
+          <label>
+            Passwort
+            <input id="loginPassword" type="password" autocomplete="current-password" required>
+          </label>
+          <button id="loginButton" class="button primary" type="submit">Anmelden</button>
+        </form>
+        <p id="authMessage" class="form-message" role="status"></p>
+        <p class="hint">Das Benutzerkonto wird einmalig in Supabase unter Authentication → Users angelegt. Verwende anschließend auf allen Geräten dieselben Zugangsdaten.</p>
+      </article>
+    </section>
+
+    <main id="pageShell" class="page-shell hidden">
       <section id="overviewView" class="app-view">
         <section class="stats" aria-label="Übersicht">
           <article class="stat-card">
@@ -119,7 +147,7 @@
         <p id="homeMessage" class="home-message" role="status"></p>
 
         <section class="notice">
-          <strong>Multi-Device 0.9.1:</strong> Diese Version speichert Artikelfotos, erstellt strukturierte Vinted-Entwürfe und unterstützt regelbasierte Käuferantworten. Sie greift nicht automatisch auf dein Vinted-Konto zu und verschickt keine Nachrichten.
+          <strong>Cloud Sync 0.10:</strong> Artikelbestand und Artikelfotos werden nach der Anmeldung über Supabase zwischen PC, iPad und iPhone synchronisiert. Vinted selbst wird weiterhin nicht automatisch bedient und Nachrichten werden nicht automatisch verschickt.
         </section>
       </section>
 

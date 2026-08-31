@@ -1305,3 +1305,109 @@ a {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* Cloud Sync 0.10 */
+.topbar-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.account-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.account-email {
+  max-width: 260px;
+  overflow: hidden;
+  color: #d8f5e8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-button {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.topbar-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.auth-gate {
+  width: min(520px, calc(100% - 32px));
+  margin: 34px auto 64px;
+}
+
+.auth-card {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.auth-card h2 {
+  margin-bottom: 10px;
+  font-size: 1.65rem;
+}
+
+.auth-card > p:not(.step):not(.hint):not(.form-message) {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.auth-form .button {
+  justify-self: stretch;
+}
+
+.sync-ok {
+  background: rgba(202, 245, 226, 0.18);
+}
+
+.sync-working {
+  background: rgba(255, 213, 142, 0.18);
+}
+
+.sync-error {
+  background: rgba(255, 177, 163, 0.18);
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .topbar-actions,
+  .account-controls {
+    width: 100%;
+    justify-items: start;
+    justify-content: flex-start;
+  }
+
+  .account-email {
+    width: 100%;
+    max-width: none;
+  }
+}

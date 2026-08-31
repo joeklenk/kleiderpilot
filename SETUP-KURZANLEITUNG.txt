@@ -1,0 +1,29 @@
+KLEIDERPILOT 0.10 – KURZANLEITUNG CLOUD SYNC
+
+1) SUPABASE
+   SQL Editor -> New query
+   Datei setup/supabase_setup.sql öffnen
+   gesamten Inhalt kopieren -> Run
+
+2) BENUTZER
+   Authentication -> Users -> Add user
+   E-Mail + Passwort anlegen
+
+3) GITHUB
+   alle Dateien aus KleiderPilot-0.10-CloudSync in dein bestehendes
+   Repository kleiderpilot hochladen -> Commit changes
+
+4) PC ZUERST
+   KleiderPilot-Webseite am PC neu laden
+   anmelden
+   warten bis "Synchronisiert" angezeigt wird
+
+5) IPAD / IPHONE
+   dieselbe KleiderPilot-URL öffnen
+   mit derselben E-Mail + Passwort anmelden
+   Artikel werden aus der Cloud geladen
+
+WICHTIG:
+- Secret/service_role Key niemals in GitHub eintragen.
+- Der Publishable Key in cloud.js ist für die Browser-App vorgesehen.
+- RLS aus dem SQL-Skript muss vor der Nutzung eingerichtet sein.

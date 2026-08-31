@@ -23,11 +23,16 @@ import {
 } from "./listing.js";
 import { compressImageFile } from "./images.js";
 import { loadItems, saveItems } from "./storage.js";
+import { getSession, onAuthStateChange, signIn, signOut, syncItems } from "./cloud.js";
 
 let items = [];
 let selectedImages = [];
 let imagesProcessing = false;
 let imageProcessingToken = 0;
+let currentSession = null;
+let cloudSyncPromise = null;
+let cloudSyncQueued = false;
+let periodicSyncTimer = null;
 
 const elements = {
   overviewView: document.querySelector("#overviewView"),
@@ -127,8 +132,93 @@ const elements = {
   listedDateInput: document.querySelector("#listedDateInput"),
   listedDateMessage: document.querySelector("#listedDateMessage"),
   closeListedDateDialog: document.querySelector("#closeListedDateDialog"),
-  cancelListedDateButton: document.querySelector("#cancelListedDateButton")
+  cancelListedDateButton: document.querySelector("#cancelListedDateButton"),
+  authGate: document.querySelector("#authGate"),
+  pageShell: document.querySelector("#pageShell"),
+  loginForm: document.querySelector("#loginForm"),
+  loginEmail: document.querySelector("#loginEmail"),
+  loginPassword: document.querySelector("#loginPassword"),
+  loginButton: document.querySelector("#loginButton"),
+  authMessage: document.querySelector("#authMessage"),
+  syncBadge: document.querySelector("#syncBadge"),
+  accountControls: document.querySelector("#accountControls"),
+  accountEmail: document.querySelector("#accountEmail"),
+  syncNowButton: document.querySelector("#syncNowButton"),
+  logoutButton: document.querySelector("#logoutButton")
 };
+
+function setSyncBadge(text, state = "") {
+  elements.syncBadge.textContent = text;
+  elements.syncBadge.classList.remove("sync-ok", "sync-working", "sync-error");
+  if (state) elements.syncBadge.classList.add(`sync-${state}`);
+}
+
+function setAuthenticatedUi(session) {
+  currentSession = session || null;
+  const authenticated = Boolean(session?.user);
+  elements.authGate.classList.toggle("hidden", authenticated);
+  elements.pageShell.classList.toggle("hidden", !authenticated);
+  elements.accountControls.classList.toggle("hidden", !authenticated);
+  elements.accountEmail.textContent = authenticated ? session.user.email || "Angemeldet" : "";
+  if (authenticated) {
+    setSyncBadge(navigator.onLine ? "☁ Bereit zur Synchronisierung" : "⚠ Offline – lokal gespeichert", navigator.onLine ? "working" : "error");
+  } else {
+    setSyncBadge("☁ Nicht angemeldet");
+  }
+}
+
+async function runCloudSync({ announce = false } = {}) {
+  if (!currentSession?.user) return false;
+  if (!navigator.onLine) {
+    setSyncBadge("⚠ Offline – Änderungen bleiben lokal", "error");
+    return false;
+  }
+
+  if (cloudSyncPromise) {
+    cloudSyncQueued = true;
+    return cloudSyncPromise;
+  }
+
+  cloudSyncPromise = (async () => {
+    setSyncBadge("↻ Synchronisiere …", "working");
+    try {
+      items = await syncItems(items);
+      await saveItems(items);
+      renderInventory();
+      if (!elements.editingId.value) elements.sku.value = getNextSku(items);
+      const time = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" }).format(new Date());
+      setSyncBadge(`☁ Synchronisiert · ${time}`, "ok");
+      if (announce) {
+        elements.homeMessage.textContent = "Artikelbestand wurde mit der Cloud synchronisiert.";
+        elements.homeMessage.style.color = "#087f5b";
+      }
+      return true;
+    } catch (error) {
+      console.error("KleiderPilot Cloud Sync:", error);
+      setSyncBadge("⚠ Cloud-Sync fehlgeschlagen", "error");
+      if (announce) {
+        elements.homeMessage.textContent = `Synchronisierung fehlgeschlagen: ${error.message || error}`;
+        elements.homeMessage.style.color = "#a33b2b";
+      }
+      return false;
+    } finally {
+      cloudSyncPromise = null;
+      if (cloudSyncQueued) {
+        cloudSyncQueued = false;
+        queueMicrotask(() => runCloudSync());
+      }
+    }
+  })();
+
+  return cloudSyncPromise;
+}
+
+function startPeriodicSync() {
+  if (periodicSyncTimer) clearInterval(periodicSyncTimer);
+  periodicSyncTimer = setInterval(() => {
+    if (document.visibilityState === "visible" && currentSession?.user) runCloudSync();
+  }, 30_000);
+}
 
 function showView(viewName) {
   const target = {
@@ -642,6 +732,7 @@ function renderInventory() {
 async function persistAndRender() {
   await saveItems(items);
   renderInventory();
+  if (currentSession?.user) await runCloudSync();
 }
 
 async function copyText(value, messageElement) {
@@ -1027,10 +1118,77 @@ document.querySelector(".quick-messages").addEventListener("click", (event) => {
   elements.buyerMessage.focus();
 });
 
+elements.loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  elements.authMessage.textContent = "";
+  elements.loginButton.disabled = true;
+  elements.loginButton.textContent = "Anmeldung läuft …";
+  try {
+    const session = await signIn(elements.loginEmail.value.trim(), elements.loginPassword.value);
+    if (!session?.user) throw new Error("Anmeldung konnte nicht abgeschlossen werden.");
+    setAuthenticatedUi(session);
+    elements.loginPassword.value = "";
+    await runCloudSync({ announce: true });
+    showView("overview");
+  } catch (error) {
+    elements.authMessage.textContent = `Anmeldung fehlgeschlagen: ${error.message || error}`;
+    elements.authMessage.style.color = "#a33b2b";
+  } finally {
+    elements.loginButton.disabled = false;
+    elements.loginButton.textContent = "Anmelden";
+  }
+});
+
+elements.logoutButton.addEventListener("click", async () => {
+  try {
+    await signOut();
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setAuthenticatedUi(null);
+    elements.authMessage.textContent = "Abgemeldet. Die lokale Kopie bleibt auf diesem Gerät erhalten.";
+    elements.authMessage.style.color = "#65756e";
+  }
+});
+
+elements.syncNowButton.addEventListener("click", async () => {
+  await runCloudSync({ announce: true });
+});
+
+window.addEventListener("online", () => {
+  if (currentSession?.user) runCloudSync();
+});
+
+window.addEventListener("offline", () => {
+  if (currentSession?.user) setSyncBadge("⚠ Offline – Änderungen bleiben lokal", "error");
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && currentSession?.user) runCloudSync();
+});
+
+onAuthStateChange((session) => {
+  if (session?.user?.id === currentSession?.user?.id) return;
+  setAuthenticatedUi(session);
+  if (session?.user) runCloudSync();
+});
+
 items = await loadItems();
 renderInventory();
 resetForm();
 showView("overview");
+
+try {
+  const session = await getSession();
+  setAuthenticatedUi(session);
+  if (session?.user) await runCloudSync();
+} catch (error) {
+  setAuthenticatedUi(null);
+  elements.authMessage.textContent = `Cloud-Verbindung konnte nicht initialisiert werden: ${error.message || error}`;
+  elements.authMessage.style.color = "#a33b2b";
+}
+
+startPeriodicSync();
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   navigator.serviceWorker.register("./sw.js").catch(() => {});

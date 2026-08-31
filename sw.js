@@ -1,9 +1,10 @@
-const CACHE_NAME = "kleiderpilot-0.9.1-shell-v1";
+const CACHE_NAME = "kleiderpilot-0.10-shell-v1";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./dashboard.css",
   "./dashboard.js",
+  "./cloud.js",
   "./storage.js",
   "./rules.js",
   "./listing.js",
@@ -28,11 +29,18 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
-      const copy = response.clone();
-      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    try {
+      // Network-first verhindert, dass PC/iPad nach einem GitHub-Update dauerhaft eine alte App-Version sehen.
+      const response = await fetch(event.request);
+      if (response.ok) await cache.put(event.request, response.clone());
       return response;
-    }).catch(() => caches.match("./index.html")))
-  );
+    } catch {
+      return (await cache.match(event.request)) || (await cache.match("./index.html"));
+    }
+  })());
 });

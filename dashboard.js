@@ -23,7 +23,7 @@ import {
 } from "./listing.js";
 import { compressImageFile } from "./images.js";
 import { loadItems, saveItems } from "./storage.js";
-import { createWorkspace, formatPairCode, getWorkspace, initializeDeviceSession, joinWorkspace, normalizePairCode, syncItems } from "./cloud.js";
+import { createWorkspace, formatPairCode, getWorkspace, initializeDeviceSession, joinWorkspace, normalizePairCode, purgePreReleaseWorkspaceData, syncItems } from "./cloud.js";
 
 let items = [];
 let selectedImages = [];
@@ -33,6 +33,25 @@ let currentWorkspace = null;
 let cloudSyncPromise = null;
 let cloudSyncQueued = false;
 let periodicSyncTimer = null;
+
+const PRODUCTIVE_RELEASE_CUTOFF = "2026-09-01T07:43:14Z";
+const PRODUCTIVE_RESET_KEY = "kleiderpilot_1_0_productive_reset_v1";
+
+function isProductiveResetComplete() {
+  try {
+    return localStorage.getItem(PRODUCTIVE_RESET_KEY) === "done";
+  } catch {
+    return false;
+  }
+}
+
+function markProductiveResetComplete() {
+  try {
+    localStorage.setItem(PRODUCTIVE_RESET_KEY, "done");
+  } catch {
+    // Der Cloud-Bestand bleibt trotzdem korrekt; nur der lokale Marker kann dann nicht gespeichert werden.
+  }
+}
 
 const elements = {
   overviewView: document.querySelector("#overviewView"),
@@ -221,6 +240,16 @@ async function runCloudSync({ announce = false } = {}) {
   })();
 
   return cloudSyncPromise;
+}
+
+async function prepareProductiveWorkspace(workspace) {
+  if (isProductiveResetComplete()) return;
+  setSyncBadge("↻ Produktivstart wird vorbereitet …", "working");
+  items = [];
+  await saveItems(items);
+  renderInventory();
+  await purgePreReleaseWorkspaceData(workspace, PRODUCTIVE_RELEASE_CUTOFF);
+  markProductiveResetComplete();
 }
 
 function startPeriodicSync() {
@@ -1135,6 +1164,7 @@ elements.createWorkspaceButton.addEventListener("click", async () => {
   try {
     const workspace = await createWorkspace();
     setConnectedUi(workspace);
+    await prepareProductiveWorkspace(workspace);
     await runCloudSync({ announce: true });
     showView("overview");
     showPairingCode();
@@ -1161,6 +1191,7 @@ elements.joinWorkspaceForm.addEventListener("submit", async (event) => {
     const workspace = await joinWorkspace(elements.pairCodeInput.value);
     setConnectedUi(workspace);
     elements.pairCodeInput.value = "";
+    await prepareProductiveWorkspace(workspace);
     await runCloudSync({ announce: true });
     showView("overview");
   } catch (error) {
@@ -1209,7 +1240,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 items = await loadItems();
-// Alte 0.8/0.9-Testartikel werden beim Upgrade einmalig entfernt. Echte Nutzerartikel bleiben erhalten.
+// Sicherheitsbereinigung für sehr alte Beispieldaten aus Vorversionen.
 const itemsWithoutLegacySamples = items.filter((item) => item?.sampleData !== true && !String(item?.id || "").startsWith("kleiderpilot-sample-"));
 if (itemsWithoutLegacySamples.length !== items.length) {
   items = itemsWithoutLegacySamples;
@@ -1223,7 +1254,10 @@ try {
   await initializeDeviceSession();
   const workspace = await getWorkspace();
   setConnectedUi(workspace);
-  if (workspace?.id) await runCloudSync();
+  if (workspace?.id) {
+    await prepareProductiveWorkspace(workspace);
+    await runCloudSync();
+  }
 } catch (error) {
   setConnectedUi(null);
   elements.deviceGate.classList.remove("hidden");

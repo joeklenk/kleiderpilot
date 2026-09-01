@@ -1,4 +1,4 @@
-const CACHE_NAME = "kleiderpilot-0.10.3-shell-v1";
+const CACHE_NAME = "kleiderpilot-1.0-shell-v1";
 const APP_SHELL = [
   "./",
   "./index.html",

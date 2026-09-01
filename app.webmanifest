@@ -1,7 +1,7 @@
 {
   "name": "KleiderPilot",
   "short_name": "KleiderPilot",
-  "description": "KleiderPilot mit Cloud-Synchronisierung für PC, iPad und iPhone.",
+  "description": "KleiderPilot 1.0 – Second-Hand-Assistent mit Synchronisierung für PC, iPad und iPhone.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

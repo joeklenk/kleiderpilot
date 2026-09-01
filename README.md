@@ -1,4 +1,4 @@
-# KleiderPilot 0.10.2 – Geräte-Synchronisierung ohne Login
+# KleiderPilot 0.10.3 – Geräte-Synchronisierung ohne Login
 
 Diese Version baut auf 0.10 auf, entfernt aber den sichtbaren E-Mail-/Passwort-Login. Jedes Gerät bekommt im Hintergrund eine anonyme Supabase-Sitzung. Mehrere Geräte werden einmalig über einen 16-stelligen Gerätecode mit demselben KleiderPilot-Bestand gekoppelt.
 
@@ -8,7 +8,7 @@ Diese Version baut auf 0.10 auf, entfernt aber den sichtbaren E-Mail-/Passwort-L
 2. Im **SQL Editor** die Datei `setup/supabase_setup.sql` vollständig ausführen.
 3. Erst danach die Dateien dieser Version nach GitHub hochladen.
 
-Das SQL ist nicht destruktiv: die Tabellen und der Storage-Bucket aus 0.10 bleiben bestehen. 0.10.2 nutzt neue, gemeinsame Workspace-Tabellen und einen neuen privaten Bilder-Bucket.
+Das SQL ist nicht destruktiv: die Tabellen und der Storage-Bucket aus 0.10 bleiben bestehen. 0.10.3 nutzt neue, gemeinsame Workspace-Tabellen und einen neuen privaten Bilder-Bucket.
 
 ## Erstes Gerät
 
@@ -36,4 +36,4 @@ Der OneDrive-Ordner kann weiterhin als Original-Bildarchiv genutzt werden. Für 
 
 ## GitHub Pages / Cache
 
-Der Service Worker arbeitet network-first und verwendet einen neuen Cache-Namen `kleiderpilot-0.10.2-shell-v1`, damit Updates auf PC/iPad/iPhone zuverlässiger geladen werden.
+Der Service Worker arbeitet network-first und verwendet einen neuen Cache-Namen `kleiderpilot-0.10.3-shell-v1`, damit Updates auf PC/iPad/iPhone zuverlässiger geladen werden.

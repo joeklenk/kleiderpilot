@@ -28,13 +28,27 @@ function rowTimestamp(row = {}) {
 }
 
 function dataUrlToBlob(dataUrl = "") {
-  const [header, encoded = ""] = String(dataUrl).split(",");
-  const mimeMatch = header.match(/^data:([^;]+);base64$/i);
-  const mimeType = mimeMatch?.[1] || "image/jpeg";
-  const binary = atob(encoded);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return new Blob([bytes], { type: mimeType });
+  const value = String(dataUrl);
+  const commaIndex = value.indexOf(",");
+  if (!value.startsWith("data:") || commaIndex < 0) {
+    throw new Error("Artikelbild hat kein gültiges Datenformat.");
+  }
+
+  const header = value.slice(5, commaIndex);
+  const encoded = value.slice(commaIndex + 1);
+  const parts = header.split(";");
+  const mimeType = parts[0] || "application/octet-stream";
+  const isBase64 = parts.some((part) => part.toLowerCase() === "base64");
+
+  if (isBase64) {
+    const binary = atob(encoded.replace(/\s/g, ""));
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return new Blob([bytes], { type: mimeType });
+  }
+
+  // Beispieldaten aus älteren Versionen nutzten URL-codierte SVG-Data-URLs statt Base64.
+  return new Blob([decodeURIComponent(encoded)], { type: mimeType });
 }
 
 function blobToDataUrl(blob) {

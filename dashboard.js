@@ -1209,6 +1209,12 @@ document.addEventListener("visibilitychange", () => {
 });
 
 items = await loadItems();
+// Alte 0.8/0.9-Testartikel werden beim Upgrade einmalig entfernt. Echte Nutzerartikel bleiben erhalten.
+const itemsWithoutLegacySamples = items.filter((item) => item?.sampleData !== true && !String(item?.id || "").startsWith("kleiderpilot-sample-"));
+if (itemsWithoutLegacySamples.length !== items.length) {
+  items = itemsWithoutLegacySamples;
+  await saveItems(items);
+}
 renderInventory();
 resetForm();
 showView("overview");

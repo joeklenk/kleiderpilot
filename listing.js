@@ -71,25 +71,47 @@ export function generateListingTitle(item = {}) {
   return parts.map(capitalize).join(" ").replace(/\s+/g, " ").slice(0, 100);
 }
 
+function formatMeasurements(value) {
+  return clean(value)
+    .split(/\r?\n/)
+    .map((line) => withoutTrailingPeriod(line).replace(/(\d+(?:[.,]\d+)?)\s*(cm|mm|m)\b/gi, "$1 $2"))
+    .join("\n");
+}
+
 export function generateListingDescription(item = {}) {
   const title = generateListingTitle(item) || "Second-Hand-Artikel";
   const personalNote = clean(item.personalNote) ? sentence(item.personalNote) : "";
-  const detailLines = [
+
+  const baseDetailLines = [
     clean(item.brand) ? `• Marke: ${clean(item.brand)}` : "",
     clean(item.itemType) ? `• Artikelart: ${clean(item.itemType)}` : "",
     clean(item.model) ? `• Modell/Besonderheit: ${clean(item.model)}` : "",
     clean(item.size) ? `• Größe: ${clean(item.size)}` : "",
     clean(item.color) ? `• Farbe: ${capitalize(item.color)}` : "",
-    clean(item.material) ? `• Material: ${clean(item.material)}` : "",
-    clean(item.visualDetails) ? `• Weitere Details: ${withoutTrailingPeriod(item.visualDetails)}` : "",
-    clean(item.condition) ? `• Zustand: ${clean(item.condition)}` : "",
-    clean(item.flaws) ? `• Mängel/Besonderheiten: ${sentence(item.flaws)}` : ""
+    clean(item.material) ? `• Material: ${clean(item.material)}` : ""
   ].filter(Boolean);
+
+  const visualDetails = clean(item.visualDetails)
+    ? `• Weitere Details: ${withoutTrailingPeriod(item.visualDetails)}`
+    : "";
+
+  const conditionLines = [
+    clean(item.condition) ? `• Zustand: ${clean(item.condition)}` : "",
+    clean(item.flaws) ? `• Mängel/Besonderheiten: ${withoutTrailingPeriod(item.flaws)}` : ""
+  ].filter(Boolean);
+
+  const detailBlocks = [
+    baseDetailLines.length ? baseDetailLines.join("\n") : "",
+    visualDetails,
+    conditionLines.length ? conditionLines.join("\n") : ""
+  ].filter(Boolean);
+
+  const measurements = formatMeasurements(item.measurements);
   const sections = [
     title,
     personalNote,
-    detailLines.length ? `ARTIKELDETAILS\n${detailLines.join("\n")}` : "",
-    clean(item.measurements) ? `MAẞE (flach gemessen)\n${sentence(item.measurements)}` : "",
+    detailBlocks.length ? `ARTIKELDETAILS\n${detailBlocks.join("\n\n")}` : "",
+    measurements ? `MAẞE\n${measurements}` : "",
     [
       "Bitte beachte die Fotos – sie sind Bestandteil der Artikelbeschreibung.",
       "Der Artikel stammt aus einem Nichtraucherhaushalt ohne Haustiere.",

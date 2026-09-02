@@ -23,7 +23,7 @@ import {
 } from "./listing.js";
 import { compressImageFile } from "./images.js";
 import { loadItems, saveItems } from "./storage.js";
-import { createWorkspace, formatPairCode, getWorkspace, initializeDeviceSession, joinWorkspace, normalizePairCode, purgePreReleaseWorkspaceData, syncItems } from "./cloud.js";
+import { createWorkspace, formatPairCode, getWorkspace, initializeDeviceSession, joinWorkspace, normalizePairCode, syncItems } from "./cloud.js";
 
 let items = [];
 let selectedImages = [];
@@ -33,25 +33,6 @@ let currentWorkspace = null;
 let cloudSyncPromise = null;
 let cloudSyncQueued = false;
 let periodicSyncTimer = null;
-
-const PRODUCTIVE_RELEASE_CUTOFF = "2026-09-01T07:43:14Z";
-const PRODUCTIVE_RESET_KEY = "kleiderpilot_1_0_productive_reset_v1";
-
-function isProductiveResetComplete() {
-  try {
-    return localStorage.getItem(PRODUCTIVE_RESET_KEY) === "done";
-  } catch {
-    return false;
-  }
-}
-
-function markProductiveResetComplete() {
-  try {
-    localStorage.setItem(PRODUCTIVE_RESET_KEY, "done");
-  } catch {
-    // Der Cloud-Bestand bleibt trotzdem korrekt; nur der lokale Marker kann dann nicht gespeichert werden.
-  }
-}
 
 const elements = {
   overviewView: document.querySelector("#overviewView"),
@@ -79,6 +60,7 @@ const elements = {
   color: document.querySelector("#color"),
   material: document.querySelector("#material"),
   visualDetails: document.querySelector("#visualDetails"),
+  personalNote: document.querySelector("#personalNote"),
   listPrice: document.querySelector("#listPrice"),
   targetPrice: document.querySelector("#targetPrice"),
   floorPrice: document.querySelector("#floorPrice"),
@@ -242,16 +224,6 @@ async function runCloudSync({ announce = false } = {}) {
   return cloudSyncPromise;
 }
 
-async function prepareProductiveWorkspace(workspace) {
-  if (isProductiveResetComplete()) return;
-  setSyncBadge("↻ Produktivstart wird vorbereitet …", "working");
-  items = [];
-  await saveItems(items);
-  renderInventory();
-  await purgePreReleaseWorkspaceData(workspace, PRODUCTIVE_RELEASE_CUTOFF);
-  markProductiveResetComplete();
-}
-
 function startPeriodicSync() {
   if (periodicSyncTimer) clearInterval(periodicSyncTimer);
   periodicSyncTimer = setInterval(() => {
@@ -389,6 +361,7 @@ function getDraftSource() {
     color: elements.color.value.trim(),
     material: elements.material.value.trim(),
     visualDetails: elements.visualDetails.value.trim(),
+    personalNote: elements.personalNote.value.trim(),
     measurements: elements.measurements.value.trim(),
     flaws: elements.flaws.value.trim(),
     shipping: elements.shipping.value.trim()
@@ -405,7 +378,7 @@ function updateSearchLink() {
 
 function renderDraft() {
   const source = getDraftSource();
-  const hasDetails = [source.itemType, source.brand, source.size, source.model, source.color, source.visualDetails].some(Boolean);
+  const hasDetails = [source.itemType, source.brand, source.size, source.model, source.color, source.visualDetails, source.personalNote].some(Boolean);
   updateSearchLink();
 
   const measurementSuggestions = source.itemType ? getMeasurementChecklist(source) : [];
@@ -634,6 +607,7 @@ function fillForm(item) {
     color: item.color || "",
     material: item.material || "",
     visualDetails: item.visualDetails || "",
+    personalNote: item.personalNote || "",
     listPrice: item.listPrice ?? "",
     targetPrice: item.targetPrice ?? "",
     floorPrice: item.floorPrice ?? "",
@@ -1164,7 +1138,6 @@ elements.createWorkspaceButton.addEventListener("click", async () => {
   try {
     const workspace = await createWorkspace();
     setConnectedUi(workspace);
-    await prepareProductiveWorkspace(workspace);
     await runCloudSync({ announce: true });
     showView("overview");
     showPairingCode();
@@ -1191,7 +1164,6 @@ elements.joinWorkspaceForm.addEventListener("submit", async (event) => {
     const workspace = await joinWorkspace(elements.pairCodeInput.value);
     setConnectedUi(workspace);
     elements.pairCodeInput.value = "";
-    await prepareProductiveWorkspace(workspace);
     await runCloudSync({ announce: true });
     showView("overview");
   } catch (error) {
@@ -1255,7 +1227,6 @@ try {
   const workspace = await getWorkspace();
   setConnectedUi(workspace);
   if (workspace?.id) {
-    await prepareProductiveWorkspace(workspace);
     await runCloudSync();
   }
 } catch (error) {

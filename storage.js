@@ -26,6 +26,7 @@ function normalizeItem(rawItem) {
     color: item.color || "",
     material: item.material || "",
     visualDetails: item.visualDetails || "",
+    personalNote: item.personalNote || "",
     vintedUrl: item.vintedUrl || "",
     status: normalizeStatus(item.status),
     images: Array.isArray(item.images)
@@ -109,7 +110,7 @@ export async function exportData(items) {
   return JSON.stringify(
     {
       app: "KleiderPilot",
-      version: 9,
+      version: 10,
       exportedAt: new Date().toISOString(),
       items
     },

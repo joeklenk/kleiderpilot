@@ -1,3 +1,5 @@
-# KleiderPilot 1.0
+# KleiderPilot 1.1 – Deploy
 
-Produktiv-Deployment für GitHub Pages. Beim ersten Start der 1.0 wird der vor dem Freigabezeitpunkt vorhandene Testbestand einmalig entfernt; Geräte-Kopplung und Gerätecode bleiben bestehen.
+Inhalt dieses Ordners direkt in das bestehende GitHub-Pages-Repository hochladen und vorhandene Dateien ersetzen.
+
+Kein Reset, keine neue Supabase-SQL-Ausführung und keine neue Gerätekopplung erforderlich. Vorhandene Artikel bleiben erhalten.

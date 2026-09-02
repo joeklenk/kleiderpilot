@@ -41,6 +41,10 @@ function sentence(value) {
   return text && !/[.!?]$/.test(text) ? `${text}.` : text;
 }
 
+function withoutTrailingPeriod(value) {
+  return clean(value).replace(/\.+$/g, "").trim();
+}
+
 export function suggestCategory(item = {}) {
   const audience = clean(item.audience) || "Herren";
   const itemType = clean(item.itemType).toLocaleLowerCase("de-DE");
@@ -69,27 +73,26 @@ export function generateListingTitle(item = {}) {
 
 export function generateListingDescription(item = {}) {
   const title = generateListingTitle(item) || "Second-Hand-Artikel";
+  const personalNote = clean(item.personalNote) ? sentence(item.personalNote) : "";
   const detailLines = [
     clean(item.brand) ? `• Marke: ${clean(item.brand)}` : "",
     clean(item.itemType) ? `• Artikelart: ${clean(item.itemType)}` : "",
     clean(item.model) ? `• Modell/Besonderheit: ${clean(item.model)}` : "",
     clean(item.size) ? `• Größe: ${clean(item.size)}` : "",
-    clean(item.color) ? `• Farbe: ${clean(item.color)}` : "",
-    clean(item.material) ? `• Material: ${clean(item.material)}` : ""
-  ].filter(Boolean);
-  const conditionLines = [
+    clean(item.color) ? `• Farbe: ${capitalize(item.color)}` : "",
+    clean(item.material) ? `• Material: ${clean(item.material)}` : "",
+    clean(item.visualDetails) ? `• Weitere Details: ${withoutTrailingPeriod(item.visualDetails)}` : "",
     clean(item.condition) ? `• Zustand: ${clean(item.condition)}` : "",
-    clean(item.flaws) ? `• Mängel/Besonderheiten: ${sentence(item.flaws)}` : "",
-    clean(item.visualDetails) ? `• Weitere Details: ${sentence(item.visualDetails)}` : ""
+    clean(item.flaws) ? `• Mängel/Besonderheiten: ${sentence(item.flaws)}` : ""
   ].filter(Boolean);
   const sections = [
     title,
+    personalNote,
     detailLines.length ? `ARTIKELDETAILS\n${detailLines.join("\n")}` : "",
-    conditionLines.length ? `ZUSTAND\n${conditionLines.join("\n")}` : "",
     clean(item.measurements) ? `MAẞE (flach gemessen)\n${sentence(item.measurements)}` : "",
     [
       "Bitte beachte die Fotos – sie sind Bestandteil der Artikelbeschreibung.",
-      "Der Artikel stammt aus einem tierfreien Nichtraucherhaushalt.",
+      "Der Artikel stammt aus einem Nichtraucherhaushalt ohne Haustiere.",
       sentence(clean(item.shipping) || "Der Versand erfolgt über die bei Vinted auswählbaren Versandarten")
     ].join("\n")
   ].filter(Boolean);

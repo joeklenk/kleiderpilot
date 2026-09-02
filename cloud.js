@@ -268,52 +268,6 @@ async function upsertCloudItem(item, workspaceId, remoteRow = null) {
 }
 
 
-export async function purgePreReleaseWorkspaceData(workspace, cutoffIso) {
-  if (!workspace?.id) throw new Error("Kein KleiderPilot-Workspace für den Produktiv-Reset vorhanden.");
-  const cutoff = Date.parse(cutoffIso || "");
-  if (!Number.isFinite(cutoff)) throw new Error("Ungültiger Produktiv-Freigabezeitpunkt.");
-
-  const { data: rows, error } = await client
-    .from(ITEMS_TABLE)
-    .select("id, payload, created_at")
-    .eq("workspace_id", workspace.id);
-  if (error) throw error;
-
-  const preReleaseRows = (rows || []).filter((row) => {
-    const createdAt = Date.parse(row.created_at || row.payload?.createdAt || "");
-    return Number.isFinite(createdAt) && createdAt <= cutoff;
-  });
-
-  if (preReleaseRows.length === 0) return { itemsDeleted: 0, imagesDeleted: 0 };
-
-  const imagePaths = preReleaseRows.flatMap((row) =>
-    Array.isArray(row.payload?.images)
-      ? row.payload.images.map((image) => image?.storagePath).filter(Boolean)
-      : []
-  );
-
-  let imagesDeleted = 0;
-  for (let index = 0; index < imagePaths.length; index += 100) {
-    const chunk = imagePaths.slice(index, index + 100);
-    if (chunk.length === 0) continue;
-    const { error: imageError } = await client.storage.from(IMAGE_BUCKET).remove(chunk);
-    if (imageError) throw imageError;
-    imagesDeleted += chunk.length;
-  }
-
-  const ids = preReleaseRows.map((row) => row.id);
-  for (let index = 0; index < ids.length; index += 100) {
-    const chunk = ids.slice(index, index + 100);
-    const { error: deleteError } = await client
-      .from(ITEMS_TABLE)
-      .delete()
-      .eq("workspace_id", workspace.id)
-      .in("id", chunk);
-    if (deleteError) throw deleteError;
-  }
-
-  return { itemsDeleted: ids.length, imagesDeleted };
-}
 
 export async function syncItems(localItems = [], workspace = null) {
   const activeWorkspace = workspace || await getWorkspace();

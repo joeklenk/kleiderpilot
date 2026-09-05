@@ -1,16 +1,16 @@
-const CACHE_NAME = "kleiderpilot-1.1.4-shell-v1";
+const CACHE_NAME = "kleiderpilot-1.1.5-shell-v1";
 const APP_SHELL = [
   "./",
-  "./index.html",
-  "./dashboard.css",
-  "./dashboard.js",
-  "./cloud.js",
-  "./storage.js",
-  "./article-import.js",
-  "./rules.js",
-  "./listing.js",
-  "./images.js",
-  "./app.webmanifest",
+  "./index.html?v=1.1.5",
+  "./dashboard.css?v=1.1.5",
+  "./dashboard.js?v=1.1.5",
+  "./cloud.js?v=1.1.5",
+  "./storage.js?v=1.1.5",
+  "./article-import.js?v=1.1.5",
+  "./rules.js?v=1.1.5",
+  "./listing.js?v=1.1.5",
+  "./images.js?v=1.1.5",
+  "./app.webmanifest?v=1.1.5",
   "./icons/icon-180.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png"
@@ -41,7 +41,7 @@ self.addEventListener("fetch", (event) => {
       if (response.ok) await cache.put(event.request, response.clone());
       return response;
     } catch {
-      return (await cache.match(event.request)) || (await cache.match("./index.html"));
+      return (await cache.match(event.request)) || (await cache.match("./index.html?v=1.1.5"));
     }
   })());
 });

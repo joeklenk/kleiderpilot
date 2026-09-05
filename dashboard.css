@@ -375,10 +375,11 @@ legend {
 
 .hidden-file-input {
   position: fixed;
+  left: -10000px;
+  top: 0;
   width: 1px;
   height: 1px;
   opacity: 0;
-  pointer-events: none;
 }
 
 .form-message {
@@ -1657,4 +1658,24 @@ a {
   .batch-table {
     min-width: 720px;
   }
+}
+
+
+/* 1.1.5: eigene zweite Sicherheitsstufe statt Browser-confirm(). */
+.delete-hard-confirm {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.9rem 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(163, 59, 43, 0.35);
+  border-radius: 14px;
+  background: rgba(163, 59, 43, 0.06);
+}
+
+.delete-hard-confirm.hidden {
+  display: none;
+}
+
+.delete-hard-confirm strong {
+  color: #8d2f22;
 }

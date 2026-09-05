@@ -50,7 +50,6 @@ function normalizeItem(raw, index = 0) {
   }
 
   const itemType = cleanString(raw.itemType, 160);
-  if (!itemType) throw new Error(`Artikel ${index + 1}: In der Importdatei fehlt die Artikelart.`);
 
   const audience = VALID_AUDIENCES.has(raw.audience) ? raw.audience : "Herren";
   const condition = VALID_CONDITIONS.has(raw.condition) ? raw.condition : "Sehr gut";

@@ -7,10 +7,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="KleiderPilot">
-    <link rel="manifest" href="app.webmanifest">
+    <link rel="manifest" href="app.webmanifest?v=1.1.5">
     <link rel="apple-touch-icon" href="icons/icon-180.png">
-    <title>KleiderPilot 1.1.4</title>
-    <link rel="stylesheet" href="dashboard.css">
+    <title>KleiderPilot 1.1.5</title>
+    <link rel="stylesheet" href="dashboard.css?v=1.1.5">
   </head>
   <body>
     <header class="topbar">
@@ -159,7 +159,7 @@
         <p id="homeMessage" class="home-message" role="status"></p>
 
         <section class="notice">
-          <strong>KleiderPilot 1.1.4:</strong> Artikelbestand und Artikelfotos werden zwischen PC, iPad und iPhone synchronisiert. Vinted wird weiterhin manuell bedient; Nachrichten werden nicht automatisch verschickt.
+          <strong>KleiderPilot 1.1.5:</strong> Artikelbestand und Artikelfotos werden zwischen PC, iPad und iPhone synchronisiert. Vinted wird weiterhin manuell bedient; Nachrichten werden nicht automatisch verschickt.
         </section>
       </section>
 
@@ -575,17 +575,22 @@
         <button id="closeDeleteItemDialog" class="dialog-close" type="button" aria-label="Dialog schließen">×</button>
       </div>
       <p id="deleteItemText">Wie soll der Artikel gelöscht werden?</p>
-      <div class="delete-choice-info">
+      <div id="deleteSoftChoiceInfo" class="delete-choice-info">
         <strong>Nur löschen &amp; beibehalten</strong>
-        <span>Der Artikel bleibt mit Status „Gelöscht“ durchgestrichen im Bestand und kann wiederhergestellt werden.</span>
+        <span>Der Artikel bleibt mit Status „Gelöscht“ durchgestrichen im Bestand und kann wiederhergestellt werden. Die Artikelnummer bleibt belegt.</span>
       </div>
-      <div class="delete-choice-info danger-info">
+      <div id="deleteHardChoiceInfo" class="delete-choice-info danger-info">
         <strong>Endgültig löschen</strong>
-        <span>Der komplette Artikel inklusive ID und Bilder wird entfernt. Die Artikelnummer wird danach wieder frei. Diese Aktion kann nicht rückgängig gemacht werden.</span>
+        <span>Der komplette Artikel inklusive ID und Bilder wird lokal und in Supabase entfernt. Die Artikelnummer wird danach wieder frei.</span>
+      </div>
+      <div id="deleteHardConfirmBox" class="delete-hard-confirm hidden">
+        <strong>Endgültiges Löschen bestätigen</strong>
+        <span id="deleteHardConfirmText">Diese Aktion kann nicht rückgängig gemacht werden.</span>
       </div>
       <p id="deleteItemMessage" class="form-message" role="status"></p>
       <div class="dialog-actions delete-dialog-actions">
         <button id="cancelDeleteItemButton" class="button ghost" type="button">Abbrechen</button>
+        <button id="backDeleteChoiceButton" class="button ghost hidden" type="button">← Zurück</button>
         <button id="softDeleteItemButton" class="button secondary" type="button">Nur löschen &amp; beibehalten</button>
         <button id="hardDeleteItemButton" class="button danger" type="button">Endgültig löschen</button>
       </div>
@@ -606,6 +611,6 @@
       <p class="hint">Behandle den Code wie einen privaten Freigabecode. Wer ihn kennt, kann seinen Browser mit deinem KleiderPilot-Bestand verbinden.</p>
     </dialog>
 
-    <script type="module" src="dashboard.js"></script>
+    <script type="module" src="dashboard.js?v=1.1.5"></script>
   </body>
 </html>

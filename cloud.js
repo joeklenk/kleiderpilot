@@ -329,7 +329,7 @@ export async function syncItems(localItems = [], workspace = null) {
   for (const localItem of localItems) {
     const remoteRow = remoteRows.get(localItem.id);
 
-    // Ab 1.1.4 bedeutet ein fehlender Cloud-Datensatz bei einem zuvor synchronisierten
+    // Seit 1.1.4 bedeutet ein fehlender Cloud-Datensatz bei einem zuvor synchronisierten
     // Artikel: Der Artikel wurde auf einem anderen Gerät endgültig gelöscht.
     if (!remoteRow) {
       if (localItem._cloudSyncedAt) continue;

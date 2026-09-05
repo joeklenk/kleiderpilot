@@ -13,18 +13,18 @@ import {
   suggestReply,
   transitionItemStatus,
   validatePriceLimits
-} from "./rules.js";
+} from "./rules.js?v=1.1.5";
 import {
   buildVintedSearchUrl,
   generateListingDraft,
   getListingWarnings,
   getMeasurementChecklist,
   normalizeVintedItemUrl
-} from "./listing.js";
-import { compressImageFile } from "./images.js";
-import { loadItems, saveItems } from "./storage.js";
-import { parseArticleImportFile } from "./article-import.js";
-import { createWorkspace, formatPairCode, getWorkspace, initializeDeviceSession, joinWorkspace, normalizePairCode, permanentlyDeleteCloudItem, syncItems } from "./cloud.js";
+} from "./listing.js?v=1.1.5";
+import { compressImageFile } from "./images.js?v=1.1.5";
+import { loadItems, saveItems } from "./storage.js?v=1.1.5";
+import { parseArticleImportFile } from "./article-import.js?v=1.1.5";
+import { createWorkspace, formatPairCode, getWorkspace, initializeDeviceSession, joinWorkspace, normalizePairCode, permanentlyDeleteCloudItem, syncItems } from "./cloud.js?v=1.1.5";
 
 let items = [];
 let selectedImages = [];
@@ -38,6 +38,7 @@ let batchImportItems = [];
 let pendingBatchQueueId = "";
 let pendingDeleteItemId = "";
 let deleteDialogHardOnly = false;
+let deleteDialogConfirmingHardDelete = false;
 
 const elements = {
   overviewView: document.querySelector("#overviewView"),
@@ -152,8 +153,13 @@ const elements = {
   deleteItemTitle: document.querySelector("#deleteItemTitle"),
   deleteItemText: document.querySelector("#deleteItemText"),
   deleteItemMessage: document.querySelector("#deleteItemMessage"),
+  deleteSoftChoiceInfo: document.querySelector("#deleteSoftChoiceInfo"),
+  deleteHardChoiceInfo: document.querySelector("#deleteHardChoiceInfo"),
+  deleteHardConfirmBox: document.querySelector("#deleteHardConfirmBox"),
+  deleteHardConfirmText: document.querySelector("#deleteHardConfirmText"),
   closeDeleteItemDialog: document.querySelector("#closeDeleteItemDialog"),
   cancelDeleteItemButton: document.querySelector("#cancelDeleteItemButton"),
+  backDeleteChoiceButton: document.querySelector("#backDeleteChoiceButton"),
   softDeleteItemButton: document.querySelector("#softDeleteItemButton"),
   hardDeleteItemButton: document.querySelector("#hardDeleteItemButton"),
   deviceGate: document.querySelector("#deviceGate"),
@@ -835,7 +841,16 @@ async function importArticleFile(file) {
 
 function openArticleImportPicker() {
   elements.homeMessage.textContent = "";
-  elements.articleImportInput.click();
+  elements.articleImportInput.value = "";
+  try {
+    if (typeof elements.articleImportInput.showPicker === "function") {
+      elements.articleImportInput.showPicker();
+    } else {
+      elements.articleImportInput.click();
+    }
+  } catch {
+    elements.articleImportInput.click();
+  }
 }
 
 function resetAssistant() {
@@ -1005,13 +1020,27 @@ async function persistAndRender() {
   if (currentWorkspace?.id) await runCloudSync();
 }
 
+function resetDeleteDialogChoices() {
+  deleteDialogConfirmingHardDelete = false;
+  elements.deleteSoftChoiceInfo.classList.toggle("hidden", deleteDialogHardOnly);
+  elements.deleteHardChoiceInfo.classList.remove("hidden");
+  elements.deleteHardConfirmBox.classList.add("hidden");
+  elements.backDeleteChoiceButton.classList.add("hidden");
+  elements.softDeleteItemButton.classList.toggle("hidden", deleteDialogHardOnly);
+  elements.softDeleteItemButton.disabled = false;
+  elements.hardDeleteItemButton.disabled = false;
+  elements.backDeleteChoiceButton.disabled = false;
+  elements.cancelDeleteItemButton.disabled = false;
+  elements.hardDeleteItemButton.textContent = "Endgültig löschen";
+  elements.cancelDeleteItemButton.textContent = "Abbrechen";
+}
+
 function closeDeleteDialog() {
   pendingDeleteItemId = "";
   deleteDialogHardOnly = false;
+  deleteDialogConfirmingHardDelete = false;
   elements.deleteItemMessage.textContent = "";
-  elements.hardDeleteItemButton.disabled = false;
-  elements.hardDeleteItemButton.textContent = "Endgültig löschen";
-  elements.softDeleteItemButton.disabled = false;
+  resetDeleteDialogChoices();
   if (elements.deleteItemDialog.open) elements.deleteItemDialog.close();
 }
 
@@ -1020,11 +1049,27 @@ function openDeleteDialog(item, { hardOnly = false } = {}) {
   deleteDialogHardOnly = hardOnly;
   elements.deleteItemTitle.textContent = `${item.sku} löschen`;
   elements.deleteItemText.textContent = hardOnly
-    ? `Artikel ${item.sku} ist bereits als gelöscht markiert. Soll er jetzt vollständig entfernt werden?`
+    ? `Artikel ${item.sku} ist bereits als gelöscht markiert. Du kannst ihn jetzt endgültig entfernen.`
     : `Wie möchtest du Artikel ${item.sku} löschen?`;
-  elements.softDeleteItemButton.classList.toggle("hidden", hardOnly);
   elements.deleteItemMessage.textContent = "";
+  resetDeleteDialogChoices();
   elements.deleteItemDialog.showModal();
+}
+
+function showHardDeleteConfirmation(item) {
+  deleteDialogConfirmingHardDelete = true;
+  elements.deleteItemText.textContent = `Artikel ${item.sku} wirklich endgültig löschen?`;
+  elements.deleteSoftChoiceInfo.classList.add("hidden");
+  elements.deleteHardChoiceInfo.classList.add("hidden");
+  elements.deleteHardConfirmBox.classList.remove("hidden");
+  elements.deleteHardConfirmText.textContent = `ID, Artikeldaten und Bilder von ${item.sku} werden vollständig entfernt. Die Artikelnummer wird danach wieder frei. Diese Aktion kann nicht rückgängig gemacht werden.`;
+  elements.softDeleteItemButton.classList.add("hidden");
+  elements.backDeleteChoiceButton.classList.remove("hidden");
+  elements.hardDeleteItemButton.textContent = "Ja, endgültig löschen";
+  elements.deleteItemMessage.textContent = navigator.onLine
+    ? ""
+    : "Du bist offline. Endgültiges Löschen ist erst nach Wiederherstellung der Internetverbindung möglich.";
+  elements.deleteItemMessage.style.color = navigator.onLine ? "" : "#a33b2b";
 }
 
 async function permanentlyDeleteItem(item) {
@@ -1399,6 +1444,19 @@ elements.softDeleteItemButton.addEventListener("click", async () => {
   elements.homeMessage.style.color = "#087f5b";
 });
 
+elements.backDeleteChoiceButton.addEventListener("click", () => {
+  const item = items.find((entry) => entry.id === pendingDeleteItemId);
+  if (!item) {
+    closeDeleteDialog();
+    return;
+  }
+  resetDeleteDialogChoices();
+  elements.deleteItemText.textContent = deleteDialogHardOnly
+    ? `Artikel ${item.sku} ist bereits als gelöscht markiert. Du kannst ihn jetzt endgültig entfernen.`
+    : `Wie möchtest du Artikel ${item.sku} löschen?`;
+  elements.deleteItemMessage.textContent = "";
+});
+
 elements.hardDeleteItemButton.addEventListener("click", async () => {
   const item = items.find((entry) => entry.id === pendingDeleteItemId);
   if (!item) {
@@ -1406,11 +1464,14 @@ elements.hardDeleteItemButton.addEventListener("click", async () => {
     return;
   }
 
-  const confirmed = confirm(`Artikel ${item.sku} wirklich ENDGÜLTIG löschen?\n\nID, Artikeldaten und Cloud-Bilder werden entfernt. Die Artikelnummer wird wieder frei. Diese Aktion kann nicht rückgängig gemacht werden.`);
-  if (!confirmed) return;
+  if (!deleteDialogConfirmingHardDelete) {
+    showHardDeleteConfirmation(item);
+    return;
+  }
 
   elements.hardDeleteItemButton.disabled = true;
-  elements.softDeleteItemButton.disabled = true;
+  elements.backDeleteChoiceButton.disabled = true;
+  elements.cancelDeleteItemButton.disabled = true;
   elements.hardDeleteItemButton.textContent = "Lösche …";
   elements.deleteItemMessage.textContent = "Artikel wird lokal und in der Cloud vollständig gelöscht …";
   elements.deleteItemMessage.style.color = "#6b756f";
@@ -1422,8 +1483,9 @@ elements.hardDeleteItemButton.addEventListener("click", async () => {
     elements.homeMessage.style.color = "#087f5b";
   } catch (error) {
     elements.hardDeleteItemButton.disabled = false;
-    elements.softDeleteItemButton.disabled = deleteDialogHardOnly;
-    elements.hardDeleteItemButton.textContent = "Endgültig löschen";
+    elements.backDeleteChoiceButton.disabled = false;
+    elements.cancelDeleteItemButton.disabled = false;
+    elements.hardDeleteItemButton.textContent = "Ja, endgültig löschen";
     elements.deleteItemMessage.textContent = `Endgültiges Löschen fehlgeschlagen: ${error.message || error}`;
     elements.deleteItemMessage.style.color = "#a33b2b";
   }

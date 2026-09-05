@@ -23,7 +23,8 @@ import {
 } from "./listing.js";
 import { compressImageFile } from "./images.js";
 import { loadItems, saveItems } from "./storage.js";
-import { createWorkspace, formatPairCode, getWorkspace, initializeDeviceSession, joinWorkspace, normalizePairCode, syncItems } from "./cloud.js";
+import { parseArticleImportFile } from "./article-import.js";
+import { createWorkspace, formatPairCode, getWorkspace, initializeDeviceSession, joinWorkspace, normalizePairCode, permanentlyDeleteCloudItem, syncItems } from "./cloud.js";
 
 let items = [];
 let selectedImages = [];
@@ -33,12 +34,25 @@ let currentWorkspace = null;
 let cloudSyncPromise = null;
 let cloudSyncQueued = false;
 let periodicSyncTimer = null;
+let batchImportItems = [];
+let pendingBatchQueueId = "";
+let pendingDeleteItemId = "";
+let deleteDialogHardOnly = false;
 
 const elements = {
   overviewView: document.querySelector("#overviewView"),
   itemView: document.querySelector("#itemView"),
   assistantView: document.querySelector("#assistantView"),
+  importView: document.querySelector("#importView"),
   openItemViewButton: document.querySelector("#openItemViewButton"),
+  openImportButton: document.querySelector("#openImportButton"),
+  importItemButton: document.querySelector("#importItemButton"),
+  articleImportInput: document.querySelector("#articleImportInput"),
+  batchImportSummary: document.querySelector("#batchImportSummary"),
+  batchImportBody: document.querySelector("#batchImportBody"),
+  batchImportMessage: document.querySelector("#batchImportMessage"),
+  saveCompleteBatchButton: document.querySelector("#saveCompleteBatchButton"),
+  chooseAnotherImportButton: document.querySelector("#chooseAnotherImportButton"),
   openAssistantViewButton: document.querySelector("#openAssistantViewButton"),
   homeMessage: document.querySelector("#homeMessage"),
   activeCount: document.querySelector("#activeCount"),
@@ -134,6 +148,14 @@ const elements = {
   listedDateMessage: document.querySelector("#listedDateMessage"),
   closeListedDateDialog: document.querySelector("#closeListedDateDialog"),
   cancelListedDateButton: document.querySelector("#cancelListedDateButton"),
+  deleteItemDialog: document.querySelector("#deleteItemDialog"),
+  deleteItemTitle: document.querySelector("#deleteItemTitle"),
+  deleteItemText: document.querySelector("#deleteItemText"),
+  deleteItemMessage: document.querySelector("#deleteItemMessage"),
+  closeDeleteItemDialog: document.querySelector("#closeDeleteItemDialog"),
+  cancelDeleteItemButton: document.querySelector("#cancelDeleteItemButton"),
+  softDeleteItemButton: document.querySelector("#softDeleteItemButton"),
+  hardDeleteItemButton: document.querySelector("#hardDeleteItemButton"),
   deviceGate: document.querySelector("#deviceGate"),
   pageShell: document.querySelector("#pageShell"),
   createWorkspaceButton: document.querySelector("#createWorkspaceButton"),
@@ -235,12 +257,14 @@ function showView(viewName) {
   const target = {
     overview: elements.overviewView,
     item: elements.itemView,
-    assistant: elements.assistantView
+    assistant: elements.assistantView,
+    import: elements.importView
   }[viewName] || elements.overviewView;
 
-  for (const view of [elements.overviewView, elements.itemView, elements.assistantView]) {
+  for (const view of [elements.overviewView, elements.itemView, elements.assistantView, elements.importView]) {
     view.classList.toggle("hidden", view !== target);
   }
+  if (viewName !== "item") pendingBatchQueueId = "";
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -451,6 +475,7 @@ function getFormItem() {
     ...(existing?.shippedAt ? { shippedAt: existing.shippedAt } : {}),
     ...(existing?.deletedAt ? { deletedAt: existing.deletedAt } : {}),
     ...(existing?.statusBeforeDelete ? { statusBeforeDelete: existing.statusBeforeDelete } : {}),
+    ...(existing?._cloudSyncedAt ? { _cloudSyncedAt: existing._cloudSyncedAt } : {}),
     createdAt: existing?.createdAt || now,
     updatedAt: now
   };
@@ -580,6 +605,237 @@ function resetForm() {
   elements.formMessage.textContent = "";
   elements.copyListingMessage.textContent = "";
   renderDraft();
+}
+
+function loadImportedArticle(imported, batchEntry = null) {
+  resetForm();
+
+  const values = {
+    audience: imported.audience || "Herren",
+    itemType: imported.itemType || "",
+    brand: imported.brand || "",
+    size: imported.size || "",
+    model: imported.model || "",
+    condition: imported.condition || "Sehr gut",
+    color: imported.color || "",
+    material: imported.material || "",
+    visualDetails: imported.visualDetails || "",
+    personalNote: imported.personalNote || "",
+    listPrice: imported.listPrice ?? "",
+    targetPrice: imported.targetPrice ?? "",
+    floorPrice: imported.floorPrice ?? "",
+    measurements: imported.measurements || "",
+    flaws: imported.flaws || "",
+    shipping: imported.shipping || "Der Versand erfolgt über die bei Vinted auswählbaren Versandarten"
+  };
+
+  for (const [key, value] of Object.entries(values)) elements[key].value = value;
+  selectedImages = (imported.images || []).map((image, index) => ({
+    ...image,
+    id: image.id || (globalThis.crypto?.randomUUID?.() || `imported-${Date.now()}-${index + 1}`)
+  }));
+
+  if (batchEntry?.sku) {
+    elements.sku.value = batchEntry.sku;
+    pendingBatchQueueId = batchEntry.queueId;
+  } else {
+    pendingBatchQueueId = "";
+  }
+
+  renderPhotoPreview();
+  renderDraft();
+
+  elements.itemFormHeading.textContent = batchEntry
+    ? `Artikel prüfen · ${elements.sku.value}`
+    : `Artikel anlegen · Import ${elements.sku.value}`;
+  elements.formMessage.textContent = batchEntry
+    ? "Artikel aus dem Sammelimport geladen. Bitte prüfen, bei Bedarf korrigieren und anschließend „Artikel speichern“ wählen."
+    : "Import geladen. Bitte alle Angaben und Fotos prüfen und anschließend „Artikel speichern“ wählen.";
+  elements.formMessage.style.color = "#087f5b";
+  elements.photoMessage.textContent = selectedImages.length
+    ? `${selectedImages.length} Bild${selectedImages.length === 1 ? "" : "er"} aus der Importdatei geladen.`
+    : "Keine Bilder in der Importdatei. Bitte mindestens ein Foto ergänzen.";
+  elements.photoMessage.style.color = selectedImages.length ? "#087f5b" : "#a33b2b";
+  showView("item");
+}
+
+function assignPendingBatchSkus() {
+  const reserved = items.map((item) => ({ sku: item.sku }));
+  for (const entry of batchImportItems) {
+    if (entry.saved) continue;
+    entry.sku = getNextSku(reserved);
+    reserved.push({ sku: entry.sku });
+  }
+}
+
+function getBatchValidationErrors(entry) {
+  const imported = entry.imported;
+  const errors = [];
+  if (!imported.itemType?.trim()) errors.push("Artikelart fehlt");
+  if (!Array.isArray(imported.images) || imported.images.length === 0) errors.push("Foto fehlt");
+  if (![imported.listPrice, imported.targetPrice, imported.floorPrice].every((value) => Number(value) > 0)) {
+    errors.push("Preise unvollständig");
+  } else {
+    const priceError = validatePriceLimits({
+      listPrice: Number(imported.listPrice),
+      targetPrice: Number(imported.targetPrice),
+      floorPrice: Number(imported.floorPrice)
+    });
+    if (priceError) errors.push(priceError);
+  }
+  return errors;
+}
+
+function buildImportedDraft(entry) {
+  const imported = entry.imported;
+  const now = new Date().toISOString();
+  const source = {
+    audience: imported.audience || "Herren",
+    itemType: imported.itemType || "",
+    brand: imported.brand || "",
+    size: imported.size || "",
+    model: imported.model || "",
+    condition: imported.condition || "Sehr gut",
+    color: imported.color || "",
+    material: imported.material || "",
+    visualDetails: imported.visualDetails || "",
+    personalNote: imported.personalNote || "",
+    measurements: imported.measurements || "",
+    flaws: imported.flaws || "",
+    shipping: imported.shipping || "Der Versand erfolgt über die bei Vinted auswählbaren Versandarten"
+  };
+  const generated = generateListingDraft(source);
+  return {
+    id: createId(),
+    sku: entry.sku,
+    images: (imported.images || []).map((image, index) => ({
+      ...image,
+      id: image.id || (globalThis.crypto?.randomUUID?.() || `batch-${Date.now()}-${index + 1}`)
+    })),
+    ...source,
+    title: generated.title,
+    description: generated.description,
+    category: generated.category,
+    packageSize: generated.packageSize,
+    listPrice: Number(imported.listPrice),
+    targetPrice: Number(imported.targetPrice),
+    floorPrice: Number(imported.floorPrice),
+    vintedUrl: "",
+    status: "draft",
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+function renderBatchImport() {
+  if (!elements.batchImportBody) return;
+  const total = batchImportItems.length;
+  const saved = batchImportItems.filter((entry) => entry.saved).length;
+  const pending = total - saved;
+  const completePending = batchImportItems.filter((entry) => !entry.saved && getBatchValidationErrors(entry).length === 0).length;
+
+  elements.batchImportSummary.textContent = total
+    ? `${total} Artikel geladen · ${saved} gespeichert · ${pending} noch offen`
+    : "Noch keine Sammelimport-Datei geladen.";
+  elements.saveCompleteBatchButton.disabled = completePending === 0;
+  elements.saveCompleteBatchButton.textContent = completePending
+    ? `${completePending} vollständige${completePending === 1 ? "n Artikel" : " Artikel"} als Entwurf speichern`
+    : "Keine vollständigen Artikel zum Speichern";
+
+  elements.batchImportBody.innerHTML = batchImportItems.map((entry) => {
+    const imported = entry.imported;
+    const errors = getBatchValidationErrors(entry);
+    const image = imported.images?.[0];
+    const title = [imported.brand, imported.itemType, imported.model, imported.size ? `Größe ${imported.size}` : ""]
+      .filter(Boolean)
+      .join(" ");
+    const stateLabel = entry.saved ? "Gespeichert" : errors.length ? "Prüfung nötig" : "Bereit";
+    const stateClass = entry.saved ? "batch-state-saved" : errors.length ? "batch-state-warning" : "batch-state-ready";
+    const details = errors.length ? errors.join(" · ") : `${imported.images?.length || 0} Bilder · ${formatPrice(imported.listPrice)}`;
+
+    return `
+      <tr class="${entry.saved ? "batch-row-saved" : ""}">
+        <td>${image ? `<span class="batch-thumbnail"><img src="${escapeHtml(image.dataUrl)}" alt=""></span>` : '<span class="batch-thumbnail empty-thumbnail">–</span>'}</td>
+        <td><strong>${escapeHtml(entry.sku)}</strong></td>
+        <td>
+          <strong>${escapeHtml(title || imported.itemType)}</strong>
+          <small class="batch-row-detail">${escapeHtml(details)}</small>
+        </td>
+        <td><span class="batch-state ${stateClass}">${escapeHtml(stateLabel)}</span></td>
+        <td class="batch-actions-cell">
+          ${entry.saved
+            ? '<span class="batch-saved-mark">✓ Im Bestand</span>'
+            : `<button class="button ghost compact" type="button" data-batch-action="review" data-queue-id="${escapeHtml(entry.queueId)}">Prüfen</button>`}
+        </td>
+      </tr>`;
+  }).join("");
+}
+
+function startBatchImport(importedItems) {
+  batchImportItems = importedItems.map((imported) => ({
+    queueId: createId(),
+    sku: "",
+    imported,
+    saved: false
+  }));
+  assignPendingBatchSkus();
+  elements.batchImportMessage.textContent = "Sammelimport geladen. Du kannst jeden Artikel einzeln prüfen oder alle vollständigen Artikel direkt als Entwurf speichern.";
+  elements.batchImportMessage.style.color = "#087f5b";
+  renderBatchImport();
+  showView("import");
+}
+
+async function saveCompleteBatch() {
+  const readyEntries = batchImportItems.filter((entry) => !entry.saved && getBatchValidationErrors(entry).length === 0);
+  if (readyEntries.length === 0) {
+    elements.batchImportMessage.textContent = "Es gibt aktuell keine vollständigen Artikel, die direkt gespeichert werden können.";
+    elements.batchImportMessage.style.color = "#a33b2b";
+    return;
+  }
+
+  const newItems = [];
+  for (const entry of readyEntries) {
+    if (items.some((item) => item.sku.toLocaleLowerCase("de-DE") === entry.sku.toLocaleLowerCase("de-DE"))) {
+      assignPendingBatchSkus();
+    }
+    newItems.push(buildImportedDraft(entry));
+    entry.saved = true;
+  }
+
+  items = [...newItems.reverse(), ...items];
+  await persistAndRender();
+  assignPendingBatchSkus();
+  renderBatchImport();
+
+  const remaining = batchImportItems.filter((entry) => !entry.saved).length;
+  elements.batchImportMessage.textContent = remaining
+    ? `${readyEntries.length} Artikel wurden als Entwurf gespeichert. ${remaining} Artikel benötigen noch eine manuelle Prüfung.`
+    : `${readyEntries.length} Artikel wurden als Entwurf gespeichert. Der Sammelimport ist vollständig abgeschlossen.`;
+  elements.batchImportMessage.style.color = "#087f5b";
+}
+
+async function importArticleFile(file) {
+  if (!file) return;
+  try {
+    const parsed = parseArticleImportFile(await file.text());
+    if (parsed.mode === "batch" || parsed.items.length > 1) {
+      startBatchImport(parsed.items);
+    } else {
+      loadImportedArticle(parsed.items[0]);
+    }
+  } catch (error) {
+    console.error("KleiderPilot Artikelimport:", error);
+    elements.homeMessage.textContent = error?.message || "Die Artikeldatei konnte nicht importiert werden.";
+    elements.homeMessage.style.color = "#a33b2b";
+    showView("overview");
+  } finally {
+    elements.articleImportInput.value = "";
+  }
+}
+
+function openArticleImportPicker() {
+  elements.homeMessage.textContent = "";
+  elements.articleImportInput.click();
 }
 
 function resetAssistant() {
@@ -722,7 +978,8 @@ function renderInventory() {
           <td>
             <div class="row-actions">
               ${isDeletedStatus(item.status)
-                ? `<button class="mini-button" data-action="restore" data-id="${escapeHtml(item.id)}">Wiederherstellen</button>`
+                ? `<button class="mini-button" data-action="restore" data-id="${escapeHtml(item.id)}">Wiederherstellen</button>
+                   <button class="mini-button danger" data-action="hard-delete" data-id="${escapeHtml(item.id)}">Endgültig löschen</button>`
                 : `<button class="mini-button" data-action="edit" data-id="${escapeHtml(item.id)}">Bearbeiten</button>
                   ${normalizeVintedItemUrl(item.vintedUrl) ? `<a class="mini-button" href="${escapeHtml(normalizeVintedItemUrl(item.vintedUrl))}" target="_blank" rel="noreferrer">Auf Vinted öffnen</a>` : ""}
                   <button class="mini-button danger" data-action="delete" data-id="${escapeHtml(item.id)}">Löschen</button>`}
@@ -746,6 +1003,44 @@ async function persistAndRender() {
   await saveItems(items);
   renderInventory();
   if (currentWorkspace?.id) await runCloudSync();
+}
+
+function closeDeleteDialog() {
+  pendingDeleteItemId = "";
+  deleteDialogHardOnly = false;
+  elements.deleteItemMessage.textContent = "";
+  elements.hardDeleteItemButton.disabled = false;
+  elements.hardDeleteItemButton.textContent = "Endgültig löschen";
+  elements.softDeleteItemButton.disabled = false;
+  if (elements.deleteItemDialog.open) elements.deleteItemDialog.close();
+}
+
+function openDeleteDialog(item, { hardOnly = false } = {}) {
+  pendingDeleteItemId = item.id;
+  deleteDialogHardOnly = hardOnly;
+  elements.deleteItemTitle.textContent = `${item.sku} löschen`;
+  elements.deleteItemText.textContent = hardOnly
+    ? `Artikel ${item.sku} ist bereits als gelöscht markiert. Soll er jetzt vollständig entfernt werden?`
+    : `Wie möchtest du Artikel ${item.sku} löschen?`;
+  elements.softDeleteItemButton.classList.toggle("hidden", hardOnly);
+  elements.deleteItemMessage.textContent = "";
+  elements.deleteItemDialog.showModal();
+}
+
+async function permanentlyDeleteItem(item) {
+  if (!currentWorkspace?.id) {
+    throw new Error("Für das endgültige Löschen muss das Gerät mit deinem KleiderPilot-Bestand verbunden sein.");
+  }
+  if (!navigator.onLine) {
+    throw new Error("Endgültiges Löschen ist nur online möglich, damit der Artikel auch aus der Cloud entfernt wird.");
+  }
+
+  await permanentlyDeleteCloudItem(item, currentWorkspace);
+  items = items.filter((entry) => entry.id !== item.id);
+  if (elements.editingId.value === item.id) resetForm();
+  await saveItems(items);
+  renderInventory();
+  await runCloudSync();
 }
 
 async function copyText(value, messageElement) {
@@ -821,7 +1116,25 @@ elements.itemForm.addEventListener("submit", async (event) => {
   if (index >= 0) items[index] = item;
   else items.unshift(item);
 
+  const completedBatchQueueId = pendingBatchQueueId;
   await persistAndRender();
+
+  if (completedBatchQueueId) {
+    const batchEntry = batchImportItems.find((entry) => entry.queueId === completedBatchQueueId);
+    if (batchEntry) batchEntry.saved = true;
+    pendingBatchQueueId = "";
+    assignPendingBatchSkus();
+    resetForm();
+    renderBatchImport();
+    const remaining = batchImportItems.filter((entry) => !entry.saved).length;
+    elements.batchImportMessage.textContent = remaining
+      ? `${item.sku} wurde gespeichert. ${remaining} Artikel sind im Sammelimport noch offen.`
+      : `${item.sku} wurde gespeichert. Der Sammelimport ist vollständig abgeschlossen.`;
+    elements.batchImportMessage.style.color = "#087f5b";
+    showView("import");
+    return;
+  }
+
   resetForm();
   elements.homeMessage.textContent = index >= 0 ? "Artikel wurde aktualisiert." : "Artikel wurde gespeichert.";
   elements.homeMessage.style.color = "#087f5b";
@@ -832,6 +1145,22 @@ elements.openItemViewButton.addEventListener("click", () => {
   elements.homeMessage.textContent = "";
   resetForm();
   showView("item");
+});
+
+elements.openImportButton.addEventListener("click", openArticleImportPicker);
+elements.importItemButton.addEventListener("click", openArticleImportPicker);
+elements.articleImportInput.addEventListener("change", async () => {
+  await importArticleFile(elements.articleImportInput.files?.[0]);
+});
+
+elements.chooseAnotherImportButton.addEventListener("click", openArticleImportPicker);
+elements.saveCompleteBatchButton.addEventListener("click", saveCompleteBatch);
+elements.batchImportBody.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-batch-action]");
+  if (!button) return;
+  const entry = batchImportItems.find((candidate) => candidate.queueId === button.dataset.queueId);
+  if (!entry || entry.saved) return;
+  if (button.dataset.batchAction === "review") loadImportedArticle(entry.imported, entry);
 });
 
 elements.openAssistantViewButton.addEventListener("click", () => {
@@ -1029,11 +1358,12 @@ elements.inventoryBody.addEventListener("click", async (event) => {
   }
 
   if (button.dataset.action === "delete") {
-    if (!confirm(`Artikel ${item.sku} als gelöscht markieren? Er bleibt durchgestrichen im Bestand und kann wiederhergestellt werden.`)) return;
-    const index = items.findIndex((entry) => entry.id === item.id);
-    items[index] = softDeleteItem(item);
-    if (elements.editingId.value === item.id) resetForm();
-    await persistAndRender();
+    openDeleteDialog(item);
+    return;
+  }
+
+  if (button.dataset.action === "hard-delete") {
+    openDeleteDialog(item, { hardOnly: true });
     return;
   }
 
@@ -1043,6 +1373,59 @@ elements.inventoryBody.addEventListener("click", async (event) => {
     await persistAndRender();
     elements.homeMessage.textContent = `Artikel ${item.sku} wurde wiederhergestellt.`;
     elements.homeMessage.style.color = "#087f5b";
+  }
+});
+
+elements.closeDeleteItemDialog.addEventListener("click", closeDeleteDialog);
+elements.cancelDeleteItemButton.addEventListener("click", closeDeleteDialog);
+
+elements.deleteItemDialog.addEventListener("click", (event) => {
+  if (event.target === elements.deleteItemDialog) closeDeleteDialog();
+});
+
+elements.softDeleteItemButton.addEventListener("click", async () => {
+  const item = items.find((entry) => entry.id === pendingDeleteItemId);
+  if (!item) {
+    closeDeleteDialog();
+    return;
+  }
+
+  const index = items.findIndex((entry) => entry.id === item.id);
+  items[index] = softDeleteItem(item);
+  if (elements.editingId.value === item.id) resetForm();
+  closeDeleteDialog();
+  await persistAndRender();
+  elements.homeMessage.textContent = `Artikel ${item.sku} wurde gelöscht und bleibt zur Wiederherstellung im Bestand.`;
+  elements.homeMessage.style.color = "#087f5b";
+});
+
+elements.hardDeleteItemButton.addEventListener("click", async () => {
+  const item = items.find((entry) => entry.id === pendingDeleteItemId);
+  if (!item) {
+    closeDeleteDialog();
+    return;
+  }
+
+  const confirmed = confirm(`Artikel ${item.sku} wirklich ENDGÜLTIG löschen?\n\nID, Artikeldaten und Cloud-Bilder werden entfernt. Die Artikelnummer wird wieder frei. Diese Aktion kann nicht rückgängig gemacht werden.`);
+  if (!confirmed) return;
+
+  elements.hardDeleteItemButton.disabled = true;
+  elements.softDeleteItemButton.disabled = true;
+  elements.hardDeleteItemButton.textContent = "Lösche …";
+  elements.deleteItemMessage.textContent = "Artikel wird lokal und in der Cloud vollständig gelöscht …";
+  elements.deleteItemMessage.style.color = "#6b756f";
+
+  try {
+    await permanentlyDeleteItem(item);
+    closeDeleteDialog();
+    elements.homeMessage.textContent = `Artikel ${item.sku} wurde endgültig gelöscht. Die Artikelnummer ist wieder frei.`;
+    elements.homeMessage.style.color = "#087f5b";
+  } catch (error) {
+    elements.hardDeleteItemButton.disabled = false;
+    elements.softDeleteItemButton.disabled = deleteDialogHardOnly;
+    elements.hardDeleteItemButton.textContent = "Endgültig löschen";
+    elements.deleteItemMessage.textContent = `Endgültiges Löschen fehlgeschlagen: ${error.message || error}`;
+    elements.deleteItemMessage.style.color = "#a33b2b";
   }
 });
 

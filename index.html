@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-title" content="KleiderPilot">
     <link rel="manifest" href="app.webmanifest">
     <link rel="apple-touch-icon" href="icons/icon-180.png">
-    <title>KleiderPilot 1.1.1</title>
+    <title>KleiderPilot 1.1.4</title>
     <link rel="stylesheet" href="dashboard.css">
   </head>
   <body>
@@ -141,6 +141,13 @@
               <small>Fotos, Eckdaten, Preise und Vinted-Entwurf</small>
             </span>
           </button>
+          <button id="openImportButton" class="action-card" type="button">
+            <span class="action-icon" aria-hidden="true">⇩</span>
+            <span>
+              <strong>Artikel importieren</strong>
+              <small>Einzel- oder Sammeldatei aus ChatGPT laden</small>
+            </span>
+          </button>
           <button id="openAssistantViewButton" class="action-card" type="button">
             <span class="action-icon" aria-hidden="true">💬</span>
             <span>
@@ -152,7 +159,48 @@
         <p id="homeMessage" class="home-message" role="status"></p>
 
         <section class="notice">
-          <strong>KleiderPilot 1.1.1:</strong> Artikelbestand und Artikelfotos werden zwischen PC, iPad und iPhone synchronisiert. Vinted wird weiterhin manuell bedient; Nachrichten werden nicht automatisch verschickt.
+          <strong>KleiderPilot 1.1.4:</strong> Artikelbestand und Artikelfotos werden zwischen PC, iPad und iPhone synchronisiert. Vinted wird weiterhin manuell bedient; Nachrichten werden nicht automatisch verschickt.
+        </section>
+      </section>
+
+      <section id="importView" class="app-view hidden">
+        <div class="view-heading">
+          <button class="button ghost" type="button" data-show-view="overview">← Zur Übersicht</button>
+          <div>
+            <p class="step">SAMMELIMPORT</p>
+            <h2>Mehrere Artikel hinzufügen</h2>
+          </div>
+        </div>
+
+        <section class="panel batch-import-panel">
+          <div class="panel-heading inventory-heading">
+            <div>
+              <p class="step">IMPORTÜBERSICHT</p>
+              <h2 id="batchImportSummary">Noch keine Sammelimport-Datei geladen.</h2>
+              <p class="hint">Jeder Artikel erhält automatisch die nächste freie Artikelnummer. Gespeichert wird immer als Entwurf.</p>
+            </div>
+            <div class="panel-actions batch-toolbar">
+              <button id="chooseAnotherImportButton" class="button ghost" type="button">Andere Datei wählen</button>
+              <button id="saveCompleteBatchButton" class="button primary" type="button" disabled>Vollständige Artikel speichern</button>
+            </div>
+          </div>
+
+          <div class="table-wrap batch-table-wrap">
+            <table class="batch-table">
+              <thead>
+                <tr>
+                  <th>Bild</th>
+                  <th>Artikelnummer</th>
+                  <th>Artikel</th>
+                  <th>Importstatus</th>
+                  <th>Aktion</th>
+                </tr>
+              </thead>
+              <tbody id="batchImportBody"></tbody>
+            </table>
+          </div>
+          <p id="batchImportMessage" class="form-message batch-import-message" role="status"></p>
+          <p class="hint">„Prüfen“ öffnet den Artikel in der normalen Maske. Dort kannst du alle Felder und Bilder korrigieren und anschließend speichern. Der Sammelimport bleibt dabei erhalten.</p>
         </section>
       </section>
 
@@ -172,7 +220,10 @@
               <p class="step">EINGABE</p>
               <h2 id="itemFormHeading">Artikel anlegen</h2>
             </div>
-            <button id="resetFormButton" class="button ghost" type="button">Formular leeren</button>
+            <div class="panel-actions">
+              <button id="importItemButton" class="button ghost" type="button">Artikeldatei importieren</button>
+              <button id="resetFormButton" class="button ghost" type="button">Formular leeren</button>
+            </div>
           </div>
 
           <form id="itemForm" class="item-form" novalidate>
@@ -475,6 +526,8 @@
       </section>
     </main>
 
+    <input id="articleImportInput" class="hidden-file-input" type="file" accept=".json,application/json" aria-hidden="true" tabindex="-1">
+
     <dialog id="itemDetailsDialog" class="item-dialog">
       <div class="dialog-heading">
         <div>
@@ -511,6 +564,31 @@
           <button class="button primary" type="submit">Datum speichern</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="deleteItemDialog" class="date-dialog delete-dialog">
+      <div class="dialog-heading">
+        <div>
+          <p class="step">ARTIKEL LÖSCHEN</p>
+          <h2 id="deleteItemTitle">Artikel löschen</h2>
+        </div>
+        <button id="closeDeleteItemDialog" class="dialog-close" type="button" aria-label="Dialog schließen">×</button>
+      </div>
+      <p id="deleteItemText">Wie soll der Artikel gelöscht werden?</p>
+      <div class="delete-choice-info">
+        <strong>Nur löschen &amp; beibehalten</strong>
+        <span>Der Artikel bleibt mit Status „Gelöscht“ durchgestrichen im Bestand und kann wiederhergestellt werden.</span>
+      </div>
+      <div class="delete-choice-info danger-info">
+        <strong>Endgültig löschen</strong>
+        <span>Der komplette Artikel inklusive ID und Bilder wird entfernt. Die Artikelnummer wird danach wieder frei. Diese Aktion kann nicht rückgängig gemacht werden.</span>
+      </div>
+      <p id="deleteItemMessage" class="form-message" role="status"></p>
+      <div class="dialog-actions delete-dialog-actions">
+        <button id="cancelDeleteItemButton" class="button ghost" type="button">Abbrechen</button>
+        <button id="softDeleteItemButton" class="button secondary" type="button">Nur löschen &amp; beibehalten</button>
+        <button id="hardDeleteItemButton" class="button danger" type="button">Endgültig löschen</button>
+      </div>
     </dialog>
 
     <dialog id="pairingDialog" class="item-dialog pairing-dialog">

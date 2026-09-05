@@ -1,0 +1,56 @@
+{
+  "app": "KleiderPilot",
+  "type": "article-batch-import",
+  "version": 1,
+  "createdAt": "2026-09-05T09:30:00.000Z",
+  "items": [
+    {
+      "audience": "Herren",
+      "itemType": "Strickpullover",
+      "brand": "Lacoste",
+      "size": "M",
+      "condition": "Sehr gut",
+      "color": "Weiß Blau",
+      "material": "Baumwolle",
+      "model": "Classic Fit",
+      "visualDetails": "Logo auf der Brust",
+      "personalNote": "Nur 2x getragen und daher fast wie neu!",
+      "listPrice": 40,
+      "targetPrice": 40,
+      "floorPrice": 35,
+      "measurements": "Brustweite 55 cm, Länge 68 cm, Ärmel 62 cm",
+      "flaws": "Keine Flecken oder Löcher; leichte Waschspuren",
+      "shipping": "Der Versand erfolgt über die bei Vinted auswählbaren Versandarten",
+      "images": [
+        {
+          "name": "Beispiel_1.png",
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zq9sAAAAASUVORK5CYII="
+        }
+      ]
+    },
+    {
+      "audience": "Herren",
+      "itemType": "T-Shirt",
+      "brand": "Tommy Hilfiger",
+      "size": "L",
+      "condition": "Sehr gut",
+      "color": "Olive",
+      "material": "Baumwolle",
+      "model": "Classic Fit",
+      "visualDetails": "Logo auf der Brust",
+      "personalNote": "",
+      "listPrice": 18,
+      "targetPrice": 15,
+      "floorPrice": 12,
+      "measurements": "",
+      "flaws": "",
+      "shipping": "Der Versand erfolgt über die bei Vinted auswählbaren Versandarten",
+      "images": [
+        {
+          "name": "Beispiel_2.png",
+          "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zq9sAAAAASUVORK5CYII="
+        }
+      ]
+    }
+  ]
+}

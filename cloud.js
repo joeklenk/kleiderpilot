@@ -83,8 +83,9 @@ function getStoragePath(workspaceId, itemId, image = {}, index = 0) {
 }
 
 function stripImageData(item = {}, workspaceId) {
+  const { _cloudSyncedAt: _removedCloudSyncedAt, ...publicItem } = item;
   return {
-    ...item,
+    ...publicItem,
     images: Array.isArray(item.images)
       ? item.images.map((image, index) => ({
           id: image.id,
@@ -269,6 +270,46 @@ async function upsertCloudItem(item, workspaceId, remoteRow = null) {
 
 
 
+function markCloudSynced(item, timestamp = null) {
+  return {
+    ...item,
+    _cloudSyncedAt: timestamp || new Date().toISOString()
+  };
+}
+
+export async function permanentlyDeleteCloudItem(item, workspace = null) {
+  const activeWorkspace = workspace || await getWorkspace();
+  if (!activeWorkspace?.id) throw new Error("Dieses Gerät ist noch nicht mit einem KleiderPilot-Bestand verbunden.");
+  if (!item?.id) throw new Error("Der Artikel hat keine gültige ID.");
+
+  const workspaceId = activeWorkspace.id;
+  const { data: row, error: readError } = await client
+    .from(ITEMS_TABLE)
+    .select("payload")
+    .eq("workspace_id", workspaceId)
+    .eq("id", item.id)
+    .maybeSingle();
+  if (readError) throw readError;
+
+  const storagePaths = Array.isArray(row?.payload?.images)
+    ? row.payload.images.map((image) => image?.storagePath).filter(Boolean)
+    : [];
+
+  const { error: deleteError } = await client
+    .from(ITEMS_TABLE)
+    .delete()
+    .eq("workspace_id", workspaceId)
+    .eq("id", item.id);
+  if (deleteError) throw deleteError;
+
+  if (storagePaths.length > 0) {
+    const { error: storageError } = await client.storage.from(IMAGE_BUCKET).remove(storagePaths);
+    if (storageError) {
+      console.warn("KleiderPilot: Artikel wurde gelöscht, aber Cloud-Bilder konnten nicht vollständig entfernt werden.", storageError);
+    }
+  }
+}
+
 export async function syncItems(localItems = [], workspace = null) {
   const activeWorkspace = workspace || await getWorkspace();
   if (!activeWorkspace?.id) throw new Error("Dieses Gerät ist noch nicht mit einem KleiderPilot-Bestand verbunden.");
@@ -287,23 +328,33 @@ export async function syncItems(localItems = [], workspace = null) {
 
   for (const localItem of localItems) {
     const remoteRow = remoteRows.get(localItem.id);
-    if (!remoteRow || itemTimestamp(localItem) > rowTimestamp(remoteRow)) {
-      await upsertCloudItem(localItem, workspaceId, remoteRow || null);
-      merged.set(localItem.id, localItem);
+
+    // Ab 1.1.4 bedeutet ein fehlender Cloud-Datensatz bei einem zuvor synchronisierten
+    // Artikel: Der Artikel wurde auf einem anderen Gerät endgültig gelöscht.
+    if (!remoteRow) {
+      if (localItem._cloudSyncedAt) continue;
+      const uploadedRow = await upsertCloudItem(localItem, workspaceId, null);
+      merged.set(localItem.id, markCloudSynced(localItem, uploadedRow.updated_at));
+      continue;
+    }
+
+    if (itemTimestamp(localItem) > rowTimestamp(remoteRow)) {
+      const uploadedRow = await upsertCloudItem(localItem, workspaceId, remoteRow);
+      merged.set(localItem.id, markCloudSynced(localItem, uploadedRow.updated_at));
       continue;
     }
 
     if (itemTimestamp(localItem) === rowTimestamp(remoteRow)) {
-      merged.set(localItem.id, localItem);
+      merged.set(localItem.id, markCloudSynced(localItem, remoteRow.updated_at));
       continue;
     }
 
-    merged.set(localItem.id, await hydrateCloudItem(remoteRow, localItem));
+    merged.set(localItem.id, markCloudSynced(await hydrateCloudItem(remoteRow, localItem), remoteRow.updated_at));
   }
 
   for (const remoteRow of rows || []) {
     if (localMap.has(remoteRow.id)) continue;
-    merged.set(remoteRow.id, await hydrateCloudItem(remoteRow));
+    merged.set(remoteRow.id, markCloudSynced(await hydrateCloudItem(remoteRow), remoteRow.updated_at));
   }
 
   return [...merged.values()];

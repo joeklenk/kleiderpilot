@@ -112,7 +112,10 @@ export async function exportData(items) {
       app: "KleiderPilot",
       version: 10,
       exportedAt: new Date().toISOString(),
-      items
+      items: items.map((item) => {
+        const { _cloudSyncedAt: _removedCloudSyncedAt, ...exportedItem } = item;
+        return exportedItem;
+      })
     },
     null,
     2
@@ -130,6 +133,7 @@ export function validateImport(payload) {
     }
 
     const item = normalizeItem(rawItem);
+    delete item._cloudSyncedAt;
     if (!item.id || !item.sku || !item.title) {
       throw new Error(`Bei Artikel ${index + 1} fehlen ID, Artikelnummer oder Bezeichnung.`);
     }

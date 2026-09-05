@@ -1,4 +1,4 @@
-const CACHE_NAME = "kleiderpilot-1.1.1-shell-v1";
+const CACHE_NAME = "kleiderpilot-1.1.4-shell-v1";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const APP_SHELL = [
   "./dashboard.js",
   "./cloud.js",
   "./storage.js",
+  "./article-import.js",
   "./rules.js",
   "./listing.js",
   "./images.js",
